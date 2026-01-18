@@ -92,7 +92,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
         <View style={styles.tabBar}>
           {/* Sliding Pill Background - slightly more transparent */}
-          <Animated.View style={[styles.pillContainer, pillStyle]}>
+          <Animated.View style={[styles.pillContainer, pillStyle]} pointerEvents="none">
             <LinearGradient
               colors={[`${Colors.primary}CC`, `${Colors.primaryLight}CC`]}
               start={{ x: 0, y: 0 }}
@@ -112,6 +112,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 route.name.includes('profile') ? 'user' : 'settings';
 
             const onPress = () => {
+              console.log('Tab pressed:', route.name, 'Is focused:', isFocused);
               const event = navigation.emit({
                 type: 'tabPress',
                 target: route.key,
@@ -119,6 +120,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               });
 
               if (!isFocused && !event.defaultPrevented) {
+                console.log('Navigating to:', route.name);
                 navigation.navigate(route.name);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               }

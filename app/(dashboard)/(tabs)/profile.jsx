@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BlurView } from 'expo-blur';
 import {
   View,
   Text,
@@ -12,7 +13,8 @@ import {
   Switch,
   Dimensions,
   Animated,
-  Easing
+  Easing,
+  StyleSheet
 } from 'react-native';
 import {
   User,
