@@ -1,4 +1,5 @@
 import { Stack, SplashScreen } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SessionProvider } from "../context/SessionContext";
 import { View, Text, Dimensions, ActivityIndicator, Image, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,8 +31,25 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
-        // Simulate loading assets
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Check if first launch
+        const hasLaunched = await AsyncStorage.getItem('HAS_LAUNCHED');
+        const userToken = await AsyncStorage.getItem('authToken');
+
+        // Logic: Show splash ONLY if NOT launched before AND NO user session
+        // If user has a token, we skip splash to get them to content faster
+        // If user has launched before (but logged out), we also skip the long splash
+
+        const shouldShowSplash = !hasLaunched && !userToken;
+
+        if (shouldShowSplash) {
+          // Simulate loading / waiting for animation
+          // Select random image for splash if needed, for now we use the default View
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          await AsyncStorage.setItem('HAS_LAUNCHED', 'true');
+        }
+
+        // If we don't show splash, we just proceed immediately (or minimal load time)
+
       } catch (e) {
         console.warn(e);
       } finally {
@@ -47,6 +65,15 @@ export default function RootLayout() {
     const shimmerValue = useSharedValue(0);
     const pulseValue = useSharedValue(1);
     const fadeValue = useSharedValue(0);
+
+    // Random image selection for Splash
+    const splashImages = [
+      require('../assets/bgmali.png'),
+      // Add more images here if available, e.g., require('../assets/images/splash-alt.png')
+    ];
+    // Simple random selection
+    const randomImage = splashImages[Math.floor(Math.random() * splashImages.length)];
+
 
     useEffect(() => {
       // Initial fade in
@@ -103,7 +130,7 @@ export default function RootLayout() {
     return (
       <Animated.View style={[fadeStyle, { flex: 1 }]}>
         <ImageBackground
-          source={require('../assets/bgmali.png')}
+          source={randomImage}
           style={{ flex: 1 }}
           resizeMode="cover"
         >
@@ -185,6 +212,7 @@ export default function RootLayout() {
                   color: Colors.textSecondary,
                   marginTop: 8,
                   fontFamily: 'SpaceMono',
+                  textAlign: 'center',
                 }}>
                   Finding the Right Match, with Trust
                 </Text>
@@ -204,9 +232,8 @@ export default function RootLayout() {
   const MaliBandhanHeader = () => {
     return (
       <View>
-        {/* Gradient Background */}
-        {/* Transparent Background */}
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'transparent' }} />
+        {/* Gradient Background - Removed for clearer UI on dashboard */}
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: Colors.primary }} />
 
         {/* Single Line Header */}
         <View style={{
@@ -250,14 +277,6 @@ export default function RootLayout() {
               }}>
                 Mali Bandhan
               </Text>
-              <Text style={{
-                fontSize: 11,
-                color: `${Colors.white}CC`,
-                fontFamily: 'SpaceMono',
-                letterSpacing: 0.2,
-              }}>
-                • Finding the Right Match, with Trust
-              </Text>
             </View>
           </View>
         </View>
@@ -274,24 +293,23 @@ export default function RootLayout() {
 
   return (
     <SessionProvider>
-      <ImageBackground
-        source={require('../assets/bgmali.png')}
-        style={{ flex: 1 }}
-        resizeMode="cover"
-      >
+      {/* Removed ImageBackground from here to allow white/clean background on dashboard */}
+      <View style={{ flex: 1, backgroundColor: Colors.background }}>
         <Stack screenOptions={{
           header: () => <MaliBandhanHeader />,
           headerTransparent: false,
           headerShadowVisible: false,
-          contentStyle: { backgroundColor: 'transparent' },
+          contentStyle: { backgroundColor: Colors.background },
         }}>
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(dashboard)" />
           <Stack.Screen name="(admin)" options={{ headerShown: false }} />
           <Stack.Screen name="payment-success" options={{ title: 'Payment Success' }} />
           <Stack.Screen name="payment-failure" options={{ title: 'Payment Failed' }} />
+          {/* Handle not-found */}
+          <Stack.Screen name="+not-found" options={{ title: 'Oops!' }} />
         </Stack>
-      </ImageBackground>
+      </View>
     </SessionProvider>
   );
 }

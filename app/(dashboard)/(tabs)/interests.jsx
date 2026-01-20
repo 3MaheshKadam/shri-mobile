@@ -37,6 +37,7 @@ import {
   ChevronUp
 } from 'lucide-react-native';
 import { useSession } from '../../../context/SessionContext';
+import { Config } from '@/constants/Config';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 
@@ -93,8 +94,8 @@ export default function InterestsPage() {
       if (!user?.id && !user?.user?.id) return [];
       const userId = user?.id ? user.id : user.user.id;
       const endpoint = type === 'send'
-        ? `https://mali-bandhan.vercel.app/api/interest/send?userId=${userId}`
-        : `https://mali-bandhan.vercel.app/api/interest/received?userId=${userId}`;
+        ? `${Config.API_URL}/api/interest/send?userId=${userId}`
+        : `${Config.API_URL}/api/interest/received?userId=${userId}`;
       const response = await fetch(endpoint);
       const data = await response.json();
       if (!response.ok) throw new Error('Failed to fetch data');
@@ -137,7 +138,7 @@ export default function InterestsPage() {
   // Handle interest actions (accept/decline/cancel)
   const handleInterestAction = async (action, interestId) => {
     try {
-      const response = await fetch('https://mali-bandhan.vercel.app/api/interest/status', {
+      const response = await fetch(`${Config.API_URL}/api/interest/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: action, interestId })
@@ -152,7 +153,7 @@ export default function InterestsPage() {
   // Handle viewing profile with subscription check
   const handleViewProfile = (person, type) => {
     if (!hasSubscription) {
-      router.push('/dashboard/subscription');
+      router.push('/(dashboard)/(tabs)/settings');
       return;
     }
     const profileData = type === 'sent' ? person.receiver : person.sender;
@@ -415,7 +416,6 @@ export default function InterestsPage() {
       >
         {selectedProfile && (
           <View style={styles.profileModal}>
-            <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle} numberOfLines={1}>{selectedProfile.name}'s Profile</Text>
@@ -539,6 +539,13 @@ export default function InterestsPage() {
                     <Text style={[styles.tabText, activeTab === tab.id && styles.activeTabText]} numberOfLines={1}>
                       {tab.label}
                     </Text>
+                    {tab.count > 0 && (
+                      <View style={[styles.countBadge, activeTab === tab.id && styles.activeCountBadge]}>
+                        <Text style={[styles.countText, activeTab === tab.id && styles.activeCountText]}>
+                          {tab.count}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </TouchableOpacity>
               );
@@ -677,7 +684,7 @@ const styles = StyleSheet.create({
   },
   profileModal: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.white,
   },
   modalHeader: {
     backgroundColor: Colors.primary,
@@ -1048,6 +1055,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 12,
     backgroundColor: Colors.lightDanger,
+  },
+  countBadge: {
+    backgroundColor: Colors.backgroundSecondary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
+  activeCountBadge: {
+    backgroundColor: Colors.primary,
+  },
+  countText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontFamily: 'SpaceMono',
+  },
+  activeCountText: {
+    color: Colors.white,
   },
   badgeText: {
     fontSize: 12,

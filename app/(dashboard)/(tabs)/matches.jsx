@@ -46,6 +46,7 @@ import {
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSession } from '@/context/SessionContext';
+import { Config } from '@/constants/Config';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/Colors';
@@ -78,6 +79,7 @@ const MatchesPage = () => {
     const [checkingSubscription, setCheckingSubscription] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterAnimation] = useState(new Animated.Value(0));
+    const [showCompletionModal, setShowCompletionModal] = useState(false);
 
     const quickFilters = useMemo(
         () => ({
@@ -100,10 +102,22 @@ const MatchesPage = () => {
         const initialize = async () => {
             setIsLoaded(true);
             await checkSubscription();
+            // Initial fetch without query
             await fetchUsers();
         };
         initialize();
     }, [user]);
+
+    // Debounced search effect
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        const timeoutId = setTimeout(() => {
+            fetchUsers(searchQuery);
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery]);
 
     useEffect(() => {
         Animated.spring(filterAnimation, {
@@ -234,7 +248,7 @@ const MatchesPage = () => {
 
     const fetchSentInterests = async (senderId) => {
         try {
-            const res = await fetch(`https://mali-bandhan.vercel.app/api/interest/received?userId=${user?.id}`);
+            const res = await fetch(`${Config.API_URL}/api/interest/received?userId=${user?.id}`);
             const data = await res.json();
             return data.success ? data.interests.map((i) => i.receiver.id) : [];
         } catch (err) {
@@ -243,10 +257,10 @@ const MatchesPage = () => {
         }
     };
 
-    const fetchUsers = async () => {
+    const fetchUsers = async (query = '') => {
         try {
             setIsLoading(true);
-            const currentUserRes = await fetch('https://mali-bandhan.vercel.app/api/users/me', {
+            const currentUserRes = await fetch(`${Config.API_URL}/api/users/me`, {
                 credentials: 'include',
             });
 
@@ -255,9 +269,26 @@ const MatchesPage = () => {
             }
 
             const currentUserData = await currentUserRes.json();
+
+            // Profile Completion Check
+            const essentialFields = ['dob', 'height', 'currentCity', 'education', 'income', 'maritalStatus', 'caste'];
+            const isProfileIncomplete = essentialFields.some(field => !currentUserData[field]);
+
+            if (isProfileIncomplete) {
+                setShowCompletionModal(true);
+                setIsLoading(false);
+                setMatches([]); // Clear matches if profile is incomplete
+                return;
+            }
+
             const sentReceiverIds = await fetchSentInterests(currentUserData._id);
 
-            const res = await fetch('https://mali-bandhan.vercel.app/api/users/fetchAllUsers?limit=20&page=1');
+            let endpoint = `${Config.API_URL}/api/users/fetchAllUsers?limit=20&page=1`;
+            if (query && query.trim().length > 0) {
+                endpoint = `${Config.API_URL}/api/users/search?q=${encodeURIComponent(query)}&limit=20&page=1`;
+            }
+
+            const res = await fetch(endpoint);
             const data = await res.json();
 
             if (data.success) {
@@ -328,9 +359,10 @@ const MatchesPage = () => {
                     if (match.compatibility <= 0) return false;
                     let shouldShow = true;
 
-                    if (searchQuery) {
-                        shouldShow = shouldShow && match.currentCity?.toLowerCase().includes(searchQuery.toLowerCase());
-                    }
+                    // Server-side search handles the query now, so we remove the client-side check
+                    // if (searchQuery) {
+                    //     shouldShow = shouldShow && match.currentCity?.toLowerCase().includes(searchQuery.toLowerCase());
+                    // }
 
                     if (activeTab !== 'all') {
                         if (activeTab === 'preferred' && match.compatibility < 70) return false;
@@ -404,7 +436,7 @@ const MatchesPage = () => {
         }
 
         try {
-            const res = await fetch('https://mali-bandhan.vercel.app/api/interest/send', {
+            const res = await fetch(`${Config.API_URL}/api/interest/send`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -425,6 +457,7 @@ const MatchesPage = () => {
 
     const handleImageClick = (match) => {
         if (!hasSubscription) {
+            router.push('/(dashboard)/(tabs)/settings');
             return;
         }
         setSelectedProfile(match);
@@ -663,7 +696,6 @@ const MatchesPage = () => {
                         ]}
                     >
                         <View style={styles.modalContent}>
-                            <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
                             <LinearGradient
                                 colors={[Colors.primary, Colors.primaryLight]}
                                 style={styles.modalHeader}
@@ -862,25 +894,6 @@ const MatchesPage = () => {
 
     return (
         <View style={styles.container}>
-            {/* Compact Header - No Background */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Matches</Text>
-                <View style={styles.headerActions}>
-                    <Pressable
-                        onPress={() => setShowQuickFilters(!showQuickFilters)}
-                        style={styles.headerButton}
-                    >
-                        <Filter size={18} color={Colors.primary} />
-                    </Pressable>
-                    <Pressable
-                        onPress={() => router.push('/preferences')}
-                        style={styles.headerButton}
-                    >
-                        <SlidersHorizontal size={18} color={Colors.primary} />
-                    </Pressable>
-                </View>
-            </View>
-
             {/* Compact Search */}
             <View style={styles.searchWrapper}>
                 <View style={styles.searchPill}>
@@ -989,6 +1002,41 @@ const MatchesPage = () => {
                     onClose={closeProfilePopup}
                     hasSubscription={hasSubscription}
                 />
+            )}
+            {showCompletionModal && (
+                <Modal
+                    animationType="fade"
+                    transparent={true}
+                    visible={showCompletionModal}
+                    onRequestClose={() => setShowCompletionModal(false)}
+                >
+                    <View style={styles.completionOverlay}>
+                        <View style={styles.completionModalContent}>
+                            <View style={styles.completionIconContainer}>
+                                <Sparkles size={48} color={Colors.primary} />
+                            </View>
+                            <Text style={styles.completionTitle}>Complete Your Profile</Text>
+                            <Text style={styles.completionSubtitle}>
+                                Please complete your profile to get matches relevant to you and unlock all features.
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.completionGoButton}
+                                onPress={() => {
+                                    setShowCompletionModal(false);
+                                    router.push('/(dashboard)/profile');
+                                }}
+                            >
+                                <Text style={styles.completionGoButtonText}>Go to Profile</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.completionLaterButton}
+                                onPress={() => setShowCompletionModal(false)}
+                            >
+                                <Text style={styles.completionLaterText}>Maybe Later</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
             )}
         </View>
     );
@@ -1405,7 +1453,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: 'transparent',
+        backgroundColor: Colors.white,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         maxHeight: '90%',
@@ -1626,6 +1674,75 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: Colors.white,
         marginTop: 12,
+        fontFamily: 'SpaceMono',
+    },
+
+    // Completion Modal
+    completionOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    completionModalContent: {
+        width: '100%',
+        backgroundColor: Colors.white,
+        borderRadius: 24,
+        padding: 32,
+        alignItems: 'center',
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    completionIconContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: Colors.secondaryLight,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    completionTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: Colors.textPrimary,
+        marginBottom: 12,
+        textAlign: 'center',
+        fontFamily: 'SpaceMono',
+    },
+    completionSubtitle: {
+        fontSize: 15,
+        color: Colors.textSecondary,
+        textAlign: 'center',
+        marginBottom: 28,
+        lineHeight: 22,
+        fontFamily: 'SpaceMono',
+    },
+    completionGoButton: {
+        width: '100%',
+        backgroundColor: Colors.primary,
+        paddingVertical: 16,
+        borderRadius: 14,
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    completionGoButtonText: {
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: '700',
+        fontFamily: 'SpaceMono',
+    },
+    completionLaterButton: {
+        paddingVertical: 8,
+    },
+    completionLaterText: {
+        color: Colors.textSecondary,
+        fontSize: 14,
+        fontWeight: '600',
         fontFamily: 'SpaceMono',
     },
 });

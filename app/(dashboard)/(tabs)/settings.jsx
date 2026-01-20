@@ -8,8 +8,6 @@ import {
   Dimensions,
   Animated,
   Easing,
-  Switch,
-  Appearance,
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,14 +18,13 @@ import {
   Gift,
   AlertCircle,
   LogOut,
-  Moon,
-  Sun,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useSession } from '../../../context/SessionContext';
+import { Config } from '@/constants/Config';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 
@@ -229,7 +226,6 @@ export default function SettingsPage() {
   const [currentSubscription, setCurrentSubscription] = useState(null);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [activeButtonId, setActiveButtonId] = useState(null);
-  const [theme, setTheme] = useState(Appearance.getColorScheme() || 'light');
   const [expandedFAQ, setExpandedFAQ] = useState(null);
 
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -243,17 +239,9 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    const loadTheme = async () => {
-      const savedTheme = await AsyncStorage.getItem('theme');
-      if (savedTheme) {
-        setTheme(savedTheme);
-      }
-    };
-    loadTheme();
-
     const fetchUserData = async () => {
       try {
-        const res = await fetch(`https://mali-bandhan.vercel.app/api/users/${user?.id}`, {
+        const res = await fetch(`${Config.API_URL}/api/users/${user?.id}`, {
           credentials: 'include',
         });
         const data = await res.json();
@@ -269,7 +257,7 @@ export default function SettingsPage() {
     const fetchPlans = async () => {
       try {
         setLoading(true);
-        const response = await fetch('https://mali-bandhan.vercel.app/api/subscription', {
+        const response = await fetch(`${Config.API_URL}/api/subscription`, {
           credentials: 'include',
         });
         if (!response.ok) {
@@ -310,7 +298,7 @@ export default function SettingsPage() {
       setIsSubscribing(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      const res = await fetch('https://mali-bandhan.vercel.app/api/payment/create-order', {
+      const res = await fetch(`${Config.API_URL}/api/payment/create-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -327,7 +315,7 @@ export default function SettingsPage() {
 
       // In a real app, you would use a WebView or external browser for Razorpay checkout
       // For simplicity, simulate payment completion and update subscription
-      const updateRes = await fetch('https://mali-bandhan.vercel.app/api/users/update-plan', {
+      const updateRes = await fetch(`${Config.API_URL}/api/users/update-plan`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -382,12 +370,6 @@ export default function SettingsPage() {
     );
   };
 
-  const handleThemeToggle = async () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    await AsyncStorage.setItem('theme', newTheme);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
 
   const getPlanConfig = (planName) => {
     const configs = {
@@ -509,32 +491,6 @@ export default function SettingsPage() {
             <Text style={{ fontSize: 20, fontWeight: '700', color: Colors.textPrimary, marginBottom: 16, textAlign: 'center', fontFamily: 'SpaceMono' }}>
               Settings
             </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: Colors.backgroundSecondary,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 12,
-                  }}
-                >
-                  {theme === 'light' ? <Sun size={24} color={Colors.primary} /> : <Moon size={24} color={Colors.primary} />}
-                </View>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: Colors.textPrimary, fontFamily: 'SpaceMono' }}>
-                  {theme === 'light' ? 'Light Theme' : 'Dark Theme'}
-                </Text>
-              </View>
-              <Switch
-                value={theme === 'dark'}
-                onValueChange={handleThemeToggle}
-                trackColor={{ false: Colors.borderLight, true: Colors.primaryLight }}
-                thumbColor={Colors.primary}
-              />
-            </View>
             <TouchableOpacity
               onPress={handleLogout}
               style={{

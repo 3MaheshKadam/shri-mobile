@@ -59,6 +59,7 @@ import { Picker } from '@react-native-picker/picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/Colors';
+import { Config } from '@/constants/Config';
 
 const { width, height } = Dimensions.get('window');
 
@@ -363,7 +364,7 @@ export default function MyProfilePage() {
     const loadData = async () => {
       try {
         // Fetch form sections structure
-        const sectionsRes = await fetch('https://mali-bandhan.vercel.app/api/admin/form-sections', {
+        const sectionsRes = await fetch(`${Config.API_URL}/api/admin/form-sections`, {
           credentials: 'include'
         });
         const sectionsData = await sectionsRes.json();
@@ -391,7 +392,7 @@ export default function MyProfilePage() {
         setActiveTab(transformedSections[0]?._id || '');
 
         // Fetch user data
-        const userRes = await fetch('https://mali-bandhan.vercel.app/api/users/me', {
+        const userRes = await fetch(`${Config.API_URL}/api/users/me`, {
           credentials: 'include'
         });
         const userData = await userRes.json();
@@ -460,34 +461,66 @@ export default function MyProfilePage() {
     }
   }, [formData, formSections]);
 
-  const calculateProfileCompletion = (formDataToCheck = formData) => {
-    if (!formSections.length) return 0;
+  const calculateSectionCompletion = (section, formDataToCheck = formData) => {
+    if (!section) return 0;
 
-    const requiredFields = Object.keys(fieldNameMappings);
-    let totalFields = requiredFields.length;
-    let filledFields = 0;
+    // Special handling for Photos section
+    if (section.label?.toLowerCase().includes('photo')) {
+      const uploadedPhotos = photos.filter(p => p.url).length;
+      return Math.round((uploadedPhotos / photos.length) * 100);
+    }
 
-    requiredFields.forEach(fieldName => {
-      const value = formDataToCheck[fieldName];
+    if (!section.fields || section.fields.length === 0) return 0;
+
+    let filledCount = 0;
+    section.fields.forEach(field => {
+      const value = formDataToCheck[field.name];
       if (value !== undefined && value !== null && value !== '') {
         if (Array.isArray(value)) {
-          if (value.length > 0 && value.some(item => item.trim() !== '')) {
-            filledFields++;
+          if (value.length > 0 && value.some(item => typeof item === 'string' && item.trim() !== '')) {
+            filledCount++;
           }
-        } else if (typeof value === 'boolean') {
-          filledFields++;
         } else if (typeof value === 'string' && value.trim() !== '') {
-          filledFields++;
-        } else if (typeof value === 'number') {
-          filledFields++;
+          filledCount++;
+        } else if (typeof value === 'boolean' || typeof value === 'number') {
+          filledCount++;
         }
       }
     });
 
-    totalFields++;
-    if (formDataToCheck.profilePhoto || (photos[0] && photos[0].url)) {
-      filledFields++;
-    }
+    return Math.round((filledCount / section.fields.length) * 100);
+  };
+
+  const calculateProfileCompletion = (formDataToCheck = formData) => {
+    if (!formSections.length) return 0;
+
+    let totalFields = 0;
+    let filledFields = 0;
+
+    formSections.forEach(section => {
+      if (section.label?.toLowerCase().includes('photo')) {
+        totalFields += 1; // Count profile photo as one main field
+        if (formDataToCheck.profilePhoto || (photos[0] && photos[0].url)) {
+          filledFields++;
+        }
+      } else {
+        section.fields.forEach(field => {
+          totalFields++;
+          const value = formDataToCheck[field.name];
+          if (value !== undefined && value !== null && value !== '') {
+            if (Array.isArray(value)) {
+              if (value.length > 0 && value.some(item => typeof item === 'string' && item.trim() !== '')) {
+                filledFields++;
+              }
+            } else if (typeof value === 'string' && value.trim() !== '') {
+              filledFields++;
+            } else if (typeof value === 'boolean' || typeof value === 'number') {
+              filledFields++;
+            }
+          }
+        });
+      }
+    });
 
     return totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 0;
   };
@@ -555,7 +588,7 @@ export default function MyProfilePage() {
         userId: user?.user?.id || user?.id
       };
 
-      const response = await fetch('https://mali-bandhan.vercel.app/api/users/update', {
+      const response = await fetch(`${Config.API_URL}/api/users/update`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -591,7 +624,7 @@ export default function MyProfilePage() {
 
   const handleVerificationSubmit = async () => {
     try {
-      const response = await fetch('https://mali-bandhan.vercel.app/api/users/update', {
+      const response = await fetch(`${Config.API_URL}/api/users/update`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -651,7 +684,7 @@ export default function MyProfilePage() {
     setAdminWillFill(enabled);
 
     try {
-      const response = await fetch('https://mali-bandhan.vercel.app/api/users/update', {
+      const response = await fetch(`${Config.API_URL}/api/users/update`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -1266,7 +1299,7 @@ export default function MyProfilePage() {
                     }) : 'Never'}
                 </Text>
                 <TouchableOpacity
-                  onPress={() => router.push('/dashboard/subscription')}
+                  onPress={() => router.push('/(dashboard)/(tabs)/settings')}
                   style={{
                     backgroundColor: Colors.backgroundTertiary,
                     padding: 12,
@@ -1288,7 +1321,7 @@ export default function MyProfilePage() {
               <View key={section._id}>
                 <ProfileSectionHeader
                   title={section.label}
-                  completion={calculateProfileCompletion(formData)}
+                  completion={calculateSectionCompletion(section, formData)}
                   onPress={() => {
                     Haptics.selectionAsync();
                     setExpandedSections(prev => ({
@@ -1358,8 +1391,8 @@ export default function MyProfilePage() {
           </View>
           <View style={{ height: 60 }} />
         </ScrollView>
-        {renderCompletionUpdate()}
-        {renderFormFillChoiceModal()}
+        {/* {renderCompletionUpdate()} */}
+        {/* {renderFormFillChoiceModal()} */}
       </View>
     </View>
   );

@@ -21,13 +21,13 @@
 //         }
 
 //         // If not in AsyncStorage, try API
-//         const response = await fetch(`https://mali-bandhan.vercel.app/api/session`, {
+//         const response = await fetch(`${Config.API_URL}/api/session`, {
 //           credentials: 'include',
 //           headers: {
 //             'Content-Type': 'application/json',
 //           },
 //         });
-        
+
 //         const result = await response.json();
 //         console.log("✅ SessionContext: /api/session result:", result);
 
@@ -48,7 +48,7 @@
 //   // Login function
 //   const login = async (userId) => {
 //     try {
-//       const response = await fetch(`https://mali-bandhan.vercel.app/api/session`, {
+//       const response = await fetch(`${Config.API_URL}/api/session`, {
 //         method: 'POST',
 //         headers: { 'Content-Type': 'application/json' },
 //         body: JSON.stringify({ userId }),
@@ -70,7 +70,7 @@
 //   // Logout function
 //   const logout = async () => {
 //     try {
-//       await fetch(`https://mali-bandhan.vercel.app/api/logout`, { 
+//       await fetch(`${Config.API_URL}/api/logout`, { 
 //         method: 'POST',
 //         headers: { 'Content-Type': 'application/json' },
 //       });
@@ -108,6 +108,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Config } from '@/constants/Config';
 
 const SessionContext = createContext();
 
@@ -126,9 +127,9 @@ export function SessionProvider({ children }) {
         if (storedUser && storedToken) {
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser);
-          console.log('Loaded user ID from AsyncStorage:', parsedUser.id);
+          console.log('Loaded user ID from AsyncStorage:', parsedUser.id, 'Phone:', parsedUser?.phone || parsedUser?.phoneNumber);
           // Validate with API
-          const response = await fetch(`https://mali-bandhan.vercel.app/api/session`, {
+          const response = await fetch(`${Config.API_URL}/api/session`, {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${storedToken}`,
@@ -140,7 +141,7 @@ export function SessionProvider({ children }) {
           if (result.user) {
             setUser(result.user);
             await AsyncStorage.setItem('user', JSON.stringify(result.user));
-            console.log('Loaded user ID from API:', result.user.id);
+            console.log('Loaded user ID from API:', result.user.id, 'Phone:', result.user?.phone || result.user?.phoneNumber);
           } else {
             // Invalid token, clear storage
             await AsyncStorage.removeItem('user');
@@ -161,7 +162,7 @@ export function SessionProvider({ children }) {
   // Login function
   const login = async (userId) => {
     try {
-      const response = await fetch(`https://mali-bandhan.vercel.app/api/session`, {
+      const response = await fetch(`${Config.API_URL}/api/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
@@ -172,7 +173,7 @@ export function SessionProvider({ children }) {
         setUser(data.user);
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
         await AsyncStorage.setItem('authToken', data.token);
-        console.log('Logged in user ID:', data.user.id);
+        console.log('Logged in user ID:', data.user.id, 'Phone:', data.user?.phone || data.user?.phoneNumber);
         router.push('/(dashboard)/matches');  // Navigate to dashboard after successful login
         return true;
       }
@@ -188,9 +189,9 @@ export function SessionProvider({ children }) {
     try {
       const storedToken = await AsyncStorage.getItem('authToken');
       if (storedToken) {
-        await fetch(`https://mali-bandhan.vercel.app/api/logout`, { 
+        await fetch(`${Config.API_URL}/api/logout`, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${storedToken}`,
           },

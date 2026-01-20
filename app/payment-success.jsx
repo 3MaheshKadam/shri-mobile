@@ -2,8 +2,11 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 
 export default function PaymentSuccess() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
       <BlurView intensity={30} tint="light" style={styles.card}>
@@ -16,7 +19,7 @@ export default function PaymentSuccess() {
           Thank you for your subscription. You now have access to premium features.
         </Text>
 
-        <TouchableOpacity style={styles.button} onPress={() => { }}>
+        <TouchableOpacity style={styles.button} onPress={() => router.replace('/(dashboard)/profile')}>
           <LinearGradient
             colors={[Colors.success, Colors.lightSuccess]}
             style={styles.buttonGradient}

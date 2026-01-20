@@ -16,6 +16,7 @@ import { useSession } from '../../context/SessionContext';
 import { Redirect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../../constants/Colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 const TAB_WIDTH = width / 4;
@@ -61,6 +62,7 @@ const TabBarIcon = ({ name, color, focused, size = 20 }) => {
 };
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
+  const insets = useSafeAreaInsets();
   const translateX = useSharedValue(0);
   const pillWidth = useSharedValue(TAB_WIDTH - 16);
 
@@ -79,12 +81,12 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.tabBarWrapper}>
+      <View style={[styles.tabBarWrapper, { paddingBottom: insets.bottom }]}>
         {/* Transparent Glass Effect */}
         <BlurView
-          intensity={30}
+          intensity={80}
           tint="light"
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]}
         />
 
         {/* Subtle top border */}

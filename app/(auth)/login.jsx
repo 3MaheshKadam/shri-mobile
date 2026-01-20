@@ -698,7 +698,8 @@ export default function MaliBandhanLogin() {
     // Static OTP verification
     if (otpString === '123456') {
       const cleanedPhone = phoneNumber.replace(/\s/g, '');
-      await login(cleanedPhone); // Use phone as userId
+      const fullPhoneNumber = `${countryCode}${cleanedPhone}`;
+      await login(fullPhoneNumber); // Use phone with country code as userId
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
       setError('Invalid OTP');
@@ -1028,6 +1029,9 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceMono',
     letterSpacing: 0.5,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   subtitle: {
     fontSize: 14,
@@ -1035,6 +1039,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     marginTop: 4,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   content: {
     paddingHorizontal: 24,
@@ -1111,8 +1118,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   otpInput: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: 10,
     borderWidth: 1,
     fontSize: 18,
