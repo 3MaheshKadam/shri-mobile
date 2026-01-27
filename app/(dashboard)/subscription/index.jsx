@@ -1,4 +1,4 @@
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Colors } from '../../../constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -11,77 +11,103 @@ import {
   MessageCircle,
   Sparkles,
   Shield,
-  Zap
+  Zap,
+  Gift
 } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
-
-const subscriptionPlans = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: '₹0',
-    duration: 'Forever',
-    color: Colors.textLight,
-    lightColor: Colors.backgroundTertiary,
-    features: [
-      { text: 'Limited matches per day', included: true },
-      { text: 'Basic profile visibility', included: true },
-      { text: 'Send 5 interests/week', included: true },
-      { text: 'View blurred photos', included: true },
-      { text: 'Advanced search filters', included: false },
-      { text: 'See who viewed you', included: false },
-      { text: 'Unlimited messaging', included: false },
-      { text: 'Priority support', included: false },
-    ],
-    popular: false,
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    price: '₹999',
-    duration: '/month',
-    color: Colors.primary,
-    lightColor: Colors.secondaryLight,
-    features: [
-      { text: 'Unlimited daily matches', included: true },
-      { text: 'Enhanced profile visibility', included: true },
-      { text: 'Unlimited interests', included: true },
-      { text: 'View full-size photos', included: true },
-      { text: 'Advanced search filters', included: true },
-      { text: 'See who viewed you', included: true },
-      { text: 'Unlimited messaging', included: true },
-      { text: 'Priority support', included: true },
-      { text: 'Profile verification badge', included: true },
-      { text: 'Ad-free experience', included: true },
-    ],
-    popular: true,
-  },
-  {
-    id: 'gold',
-    name: 'Gold',
-    price: '₹1,999',
-    duration: '/month',
-    color: Colors.warning,
-    lightColor: Colors.lightWarning,
-    features: [
-      { text: 'Everything in Premium', included: true },
-      { text: 'Featured profile placement', included: true },
-      { text: 'AI-powered matchmaking', included: true },
-      { text: 'Dedicated relationship advisor', included: true },
-      { text: 'Background verification', included: true },
-      { text: 'Video call access', included: true },
-      { text: 'Profile highlights', included: true },
-      { text: 'Exclusive events access', included: true },
-    ],
-    popular: false,
-  },
-];
+import { useState, useEffect } from 'react';
+import { useSession } from '../../../context/SessionContext';
+import { Config } from '../../../constants/Config';
 
 export default function Subscription() {
-  const handleSubscribe = (planId) => {
-    console.log('Subscribe to:', planId);
-    // Add subscription logic here
+  const { user } = useSession();
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentSubscription, setCurrentSubscription] = useState(null);
+
+  useEffect(() => {
+    fetchPlans();
+    if (user?.subscription) {
+      setCurrentSubscription(user.subscription);
+    }
+  }, [user]);
+
+  const fetchPlans = async () => {
+    try {
+      const response = await fetch(`${Config.API_URL}/api/subscription`);
+      const data = await response.json();
+
+      if (response.ok) {
+        // Sort plans: Free first, then by price
+        const sortedPlans = data.sort((a, b) => a.price - b.price);
+        setPlans(sortedPlans);
+      } else {
+        console.error('Failed to fetch plans:', data);
+        Alert.alert('Error', 'Failed to load subscription plans');
+      }
+    } catch (error) {
+      console.error('Error fetching plans:', error);
+      Alert.alert('Error', 'Currently unable to load plans. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSubscribe = (plan) => {
+    if (currentSubscription?.plan === plan.name) {
+      return;
+    }
+    console.log('Subscribe to:', plan.name);
+    // Future Phase: Redirect to Payment Gateway
+    Alert.alert('Coming Soon', `Payment integration for ${plan.name} is coming next!`);
+  };
+
+  const getPlanConfig = (planName) => {
+    const name = planName?.toLowerCase() || '';
+    if (name.includes('gold')) {
+      return {
+        color: Colors.warning,
+        lightColor: Colors.lightWarning, // You might need to add this to Colors or use a hex
+        gradient: [Colors.warning, '#F59E0B'],
+        icon: Star
+      };
+    } else if (name.includes('premium')) {
+      return {
+        color: Colors.primary,
+        lightColor: Colors.secondaryLight,
+        gradient: [Colors.primary, Colors.primaryLight],
+        icon: Crown
+      };
+    } else {
+      return {
+        color: Colors.textLight,
+        lightColor: Colors.backgroundTertiary,
+        gradient: [Colors.textLight, Colors.textSecondary],
+        icon: Gift // Importing Gift icon
+      };
+    }
+  };
+
+  const formatPrice = (price) => {
+    if (price === 0) return 'Free';
+    return `₹${price.toLocaleString('en-IN')}`;
+  };
+
+  const getDurationText = (days) => {
+    if (days === 36500 || days > 1000) return 'Forever'; // Assumption for free plan
+    if (days === 30) return '/month';
+    if (days === 365) return '/year';
+    return `/${days} days`;
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Loading Plans...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -97,100 +123,90 @@ export default function Subscription() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {subscriptionPlans.map((plan) => (
-          <View key={plan.id} style={styles.planContainer}>
-            {plan.popular && (
-              <View style={styles.popularBadge}>
-                <Sparkles size={14} color={Colors.white} />
-                <Text style={styles.popularText}>Most Popular</Text>
-              </View>
-            )}
+        {plans.map((plan) => {
+          const config = getPlanConfig(plan.name);
+          const IconComponent = config.icon;
+          const isCurrentPlan = currentSubscription?.plan === plan.name;
+          const isPopular = plan.name.toLowerCase().includes('premium'); // Logic for 'Popular' badge
 
-            <View style={[
-              styles.planCard,
-              plan.popular && styles.planCardPopular
-            ]}>
-              <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
-              {/* Plan Header */}
-              <View style={styles.planHeader}>
-                <View style={styles.planHeaderLeft}>
-                  <View style={[styles.planIconContainer, { backgroundColor: plan.lightColor }]}>
-                    {plan.id === 'free' ? (
-                      <Heart size={24} color={plan.color} />
-                    ) : plan.id === 'premium' ? (
-                      <Crown size={24} color={plan.color} />
-                    ) : (
-                      <Star size={24} color={plan.color} fill={plan.color} />
-                    )}
-                  </View>
-                  <View style={styles.planTitleContainer}>
-                    <Text style={styles.planName}>{plan.name}</Text>
-                    <View style={styles.priceContainer}>
-                      <Text style={[styles.planPrice, { color: plan.color }]}>
-                        {plan.price}
-                      </Text>
-                      <Text style={styles.planDuration}>{plan.duration}</Text>
+          return (
+            <View key={plan._id} style={styles.planContainer}>
+              {isPopular && (
+                <View style={styles.popularBadge}>
+                  <Sparkles size={14} color={Colors.white} />
+                  <Text style={styles.popularText}>Most Popular</Text>
+                </View>
+              )}
+
+              <View style={[
+                styles.planCard,
+                isPopular && styles.planCardPopular,
+                isCurrentPlan && styles.planCardActive
+              ]}>
+                <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+
+                {/* Plan Header */}
+                <View style={styles.planHeader}>
+                  <View style={styles.planHeaderLeft}>
+                    <View style={[styles.planIconContainer, { backgroundColor: config.lightColor || '#f0f0f0' }]}>
+                      <IconComponent size={24} color={config.color} fill={config.color} />
+                    </View>
+                    <View style={styles.planTitleContainer}>
+                      <Text style={styles.planName}>{plan.name}</Text>
+                      <View style={styles.priceContainer}>
+                        <Text style={[styles.planPrice, { color: config.color }]}>
+                          {formatPrice(plan.price)}
+                        </Text>
+                        <Text style={styles.planDuration}>{getDurationText(plan.durationInDays)}</Text>
+                      </View>
                     </View>
                   </View>
                 </View>
-              </View>
 
-              {/* Features List */}
-              <View style={styles.featuresContainer}>
-                {plan.features.map((feature, index) => (
-                  <View key={index} style={styles.featureItem}>
-                    <View style={[
-                      styles.featureIcon,
-                      feature.included
-                        ? { backgroundColor: Colors.lightSuccess }
-                        : { backgroundColor: Colors.lightDanger }
-                    ]}>
-                      {feature.included ? (
+                {/* Features List */}
+                <View style={styles.featuresContainer}>
+                  {plan.features.map((feature, index) => (
+                    <View key={index} style={styles.featureItem}>
+                      <View style={[
+                        styles.featureIcon,
+                        { backgroundColor: Colors.lightSuccess } // Assuming all listed features are 'included' for now
+                      ]}>
                         <Check size={14} color={Colors.success} />
-                      ) : (
-                        <X size={14} color={Colors.danger} />
-                      )}
+                      </View>
+                      <Text style={styles.featureText}>
+                        {feature}
+                      </Text>
                     </View>
-                    <Text style={[
-                      styles.featureText,
-                      !feature.included && styles.featureTextDisabled
-                    ]}>
-                      {feature.text}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+                  ))}
+                </View>
 
-              {/* Subscribe Button */}
-              {plan.id === 'free' ? (
-                <Pressable style={styles.currentPlanButton} disabled>
-                  <Text style={styles.currentPlanText}>Current Plan</Text>
-                </Pressable>
-              ) : (
-                <Pressable
-                  onPress={() => handleSubscribe(plan.id)}
-                  style={styles.subscribeButton}
-                >
-                  <LinearGradient
-                    colors={
-                      plan.id === 'gold'
-                        ? [Colors.warning, '#F59E0B']
-                        : [Colors.primary, Colors.primaryLight]
-                    }
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.subscribeGradient}
+                {/* Subscribe Button */}
+                {isCurrentPlan ? (
+                  <Pressable style={styles.currentPlanButton} disabled>
+                    <Text style={styles.currentPlanText}>Current Plan</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onPress={() => handleSubscribe(plan)}
+                    style={styles.subscribeButton}
                   >
-                    <Text style={styles.subscribeText}>
-                      {plan.id === 'premium' ? 'Upgrade to Premium' : 'Upgrade to Gold'}
-                    </Text>
-                    <Zap size={18} color={Colors.white} fill={Colors.white} />
-                  </LinearGradient>
-                </Pressable>
-              )}
+                    <LinearGradient
+                      colors={config.gradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.subscribeGradient}
+                    >
+                      <Text style={styles.subscribeText}>
+                        {plan.price === 0 ? 'Get Started' : `Upgrade to ${plan.name}`}
+                      </Text>
+                      {plan.price > 0 && <Zap size={18} color={Colors.white} fill={Colors.white} />}
+                    </LinearGradient>
+                  </Pressable>
+                )}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
 
         {/* Benefits Section */}
         <View style={styles.benefitsSection}>
@@ -243,6 +259,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: Colors.textSecondary,
+    fontFamily: 'SpaceMono',
   },
   header: {
     backgroundColor: 'transparent',
@@ -310,6 +336,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     paddingTop: 28,
   },
+  planCardActive: {
+    borderColor: Colors.success,
+    backgroundColor: Colors.lightSuccess, // Subtle background for active plan
+    borderWidth: 2,
+  },
   planHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -375,10 +406,6 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontFamily: 'SpaceMono',
     flex: 1,
-  },
-  featureTextDisabled: {
-    color: Colors.textLight,
-    textDecorationLine: 'line-through',
   },
   currentPlanButton: {
     backgroundColor: Colors.backgroundTertiary,

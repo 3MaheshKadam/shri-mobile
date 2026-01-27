@@ -353,7 +353,9 @@ export default function MyProfilePage() {
     "Expected Education": 'expectedEducation',
     "Accept Divorcee": 'divorcee',
     "Expected Height": 'expectedHeight',
-    "Expected Income": 'expectedIncome'
+    "Expected Income": 'expectedIncome',
+    "Expected Sub Caste": 'expectedSubCaste',
+    "Partner Working Status": 'expectedWorkingStatus'
   };
 
   const normalizeFieldName = (name) => {

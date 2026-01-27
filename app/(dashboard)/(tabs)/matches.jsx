@@ -148,9 +148,19 @@ const MatchesPage = () => {
     const checkSubscription = async () => {
         try {
             setCheckingSubscription(true);
-            const isActive = user?.subscription?.isSubscribed || user?.user?.subscription?.isSubscribed;
-            setHasSubscription(isActive);
-            if (hasSubscription !== isActive) {
+
+            // Check nested structure often returned by API
+            const subscriptionParams = user?.subscription || user?.user?.subscription;
+
+            const planName = subscriptionParams?.plan?.toLowerCase() || '';
+
+            // Check for explicitly true boolean, OR valid plan names (case-insensitive)
+            const isSubscribed =
+                subscriptionParams?.isSubscribed === true ||
+                ['gold', 'premium'].some(p => planName.includes(p));
+
+            setHasSubscription(!!isSubscribed);
+            if (hasSubscription !== !!isSubscribed) {
                 await fetchUsers();
             }
         } catch (err) {
@@ -267,11 +277,11 @@ const MatchesPage = () => {
         if (!userId) return [];
         try {
             console.log('Fetching interests for user:', userId);
-            
+
             // 1. Fetch Sent Interests
             const sentRes = await fetch(`${Config.API_URL}/api/interest/send?userId=${userId}`);
             const sentData = await sentRes.json();
-            
+
             // 2. Fetch Received Interests
             const receivedRes = await fetch(`${Config.API_URL}/api/interest/received?userId=${userId}`);
             const receivedData = await receivedRes.json();
@@ -301,7 +311,7 @@ const MatchesPage = () => {
 
             console.log('Connected IDs:', Array.from(connectedIds));
             setConnectedUserIds(connectedIds);
-            return sentIds; 
+            return sentIds;
         } catch (err) {
             console.error('Error fetching interests/connections:', err);
             return [];
@@ -535,7 +545,22 @@ const MatchesPage = () => {
         if (hasSubscription || connectedUserIds.has(match._id)) {
             setSelectedProfile(match);
         } else {
-            router.push('/(dashboard)/(tabs)/settings');
+            // Double check current user state before redirecting
+            const subscriptionParams = user?.subscription || user?.user?.subscription;
+
+            const planName = subscriptionParams?.plan?.toLowerCase() || '';
+
+            const isActuallySubscribed =
+                subscriptionParams?.isSubscribed === true ||
+                ['gold', 'premium'].some(p => planName.includes(p));
+
+            if (isActuallySubscribed) {
+                // If state was stale but user is actually subscribed, allow it and update state
+                setHasSubscription(true);
+                setSelectedProfile(match);
+            } else {
+                router.push('/(dashboard)/(tabs)/settings');
+            }
         }
     };
 
