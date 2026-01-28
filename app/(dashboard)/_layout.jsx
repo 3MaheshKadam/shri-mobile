@@ -186,8 +186,39 @@ const TabButton = ({ iconName, label, isFocused, onPress }) => {
   );
 };
 
+import { BackHandler, Alert } from 'react-native';
+import { usePathname, useRouter } from 'expo-router';
+
 export default function MaliBandhanDashboardLayout() {
   const { user } = useSession();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Intelligent Back Button Handling
+  useEffect(() => {
+    const backAction = () => {
+      // Check if we are currently on the "Matches" (Home) tab
+      // Pathname might contain deep links, so we check for inclusion
+      const isHomeTab = pathname.includes('matches');
+
+      if (!isHomeTab) {
+        // If on another tab (Profile, Settings, etc.), go back to Matches
+        router.push('/(dashboard)/(tabs)/matches');
+        return true; // Prevent default behavior (exiting)
+      } else {
+        // If already on Matches, exit the app
+        BackHandler.exitApp();
+        return true;
+      }
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [pathname]);
 
   if (!user) {
     return <Redirect href="/login" />;

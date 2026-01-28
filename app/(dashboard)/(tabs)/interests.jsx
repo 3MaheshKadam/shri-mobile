@@ -176,6 +176,10 @@ export default function InterestsPage() {
   useEffect(() => {
     if (user) {
       loadAllData();
+      // Check for subscription status (Gold plan or isSubscribed flag)
+      const isSubscribed = user?.subscription?.isSubscribed ||
+        (user?.subscription?.plan && user?.subscription?.plan !== 'free');
+      setHasSubscription(!!isSubscribed);
     }
   }, [user]);
 

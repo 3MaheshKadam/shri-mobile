@@ -579,6 +579,44 @@ export default function MyProfilePage() {
   };
 
   const handleProfileUpdate = async () => {
+    // 1. Validation Logic
+    const missingFields = [];
+
+    // Check Form Sections
+    formSections.forEach(section => {
+      section.fields.forEach(field => {
+        if (field.required) {
+          const value = formData[field.name];
+          const isMissing =
+            value === undefined ||
+            value === null ||
+            (typeof value === 'string' && value.trim() === '') ||
+            (Array.isArray(value) && value.length === 0);
+
+          if (isMissing) {
+            missingFields.push(field.label);
+          }
+        }
+      });
+    });
+
+    // Check Profile Photo (if considered mandatory, usually is for dating apps)
+    // We'll trust the config for text fields, but usually photo is special.
+    // Let's rely on formSections 'photo' label if it exists, otherwise explicit check?
+    // The previous code had a specific check for calculatesSectionCompletion('photo').
+    // Let's stick to strict schema validation. If Admin says Photo is required, it should be in schema?
+    // Actually, schema is for text fields. 'profilePhoto' is separate. 
+    // Let's enforce it hardcoded for now as it's critical for visibility.
+    if (!formData.profilePhoto && (!photos[0] || !photos[0].url)) {
+      missingFields.push("Profile Photo");
+    }
+
+    if (missingFields.length > 0) {
+      alert(`Please fill the following required details:\n\n${missingFields.join(', ')}`);
+      return;
+    }
+
+    // 2. Proceed with Update
     const prevCompletion = profileCompletion;
     setIsSaving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
