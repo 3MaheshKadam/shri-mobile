@@ -241,7 +241,7 @@ export default function Settings() {
                 <View style={styles.iconContainer}>
                   <Info size={20} color={Colors.primary} />
                 </View>
-                <Text style={styles.menuItemText}>About Mali Bandhan</Text>
+                <Text style={styles.menuItemText}>About Shree-Kalyanam</Text>
               </View>
               <ChevronRight size={20} color={Colors.textLight} />
             </Pressable>

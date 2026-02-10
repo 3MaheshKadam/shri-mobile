@@ -251,7 +251,7 @@ export default function SplashScreen({ navigation }) {
               className="text-5xl font-bold tracking-tight text-center"
               style={{ color: Colors.primary, fontFamily: 'SpaceMono' }}
             >
-              Mali Bandhan
+              Shree-Kalyanam
             </Text>
 
             {/* Tagline */}

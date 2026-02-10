@@ -15,7 +15,7 @@ export default function Register() {
         <BlurView intensity={30} tint="light" style={styles.card}>
           <View style={styles.header}>
             <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join Mali Bandhan today</Text>
+            <Text style={styles.subtitle}>Join Shree-Kalyanam today</Text>
           </View>
 
           <View style={styles.form}>

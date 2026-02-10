@@ -205,7 +205,7 @@ export default function RootLayout() {
                     textAlign: 'center',
                   }}
                 >
-                  Mali Bandhan
+                  Shree-Kalyanam
                 </Text>
                 <Text style={{
                   fontSize: 16,
@@ -229,7 +229,7 @@ export default function RootLayout() {
     );
   };
 
-  const MaliBandhanHeader = () => {
+  const ShreeKalyanamHeader = () => {
     return (
       <View>
         {/* Gradient Background - Removed for clearer UI on dashboard */}
@@ -275,7 +275,7 @@ export default function RootLayout() {
                 fontFamily: 'SpaceMono',
                 letterSpacing: -0.3,
               }}>
-                Mali Bandhan
+                Shree-Kalyanam
               </Text>
             </View>
           </View>
@@ -296,7 +296,7 @@ export default function RootLayout() {
       {/* Removed ImageBackground from here to allow white/clean background on dashboard */}
       <View style={{ flex: 1, backgroundColor: Colors.background }}>
         <Stack screenOptions={{
-          header: () => <MaliBandhanHeader />,
+          header: () => <ShreeKalyanamHeader />,
           headerTransparent: false,
           headerShadowVisible: false,
           contentStyle: { backgroundColor: Colors.background },
