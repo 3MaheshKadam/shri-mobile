@@ -8,17 +8,17 @@
     "scheme": "Malibandhanmobileapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/logo.png",
+      "image": "./assets/images/flash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFF0F5"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/flash.png",
+        "backgroundColor": "#FFF0F5"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.maheshkadam.Malibandhan"

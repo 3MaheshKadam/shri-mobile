@@ -233,7 +233,7 @@ export default function SplashScreen({ navigation }) {
                 }}
               >
                 <Image
-                  source={require('@/assets/images/logo.png.png')}
+                  source={require('../../assets/images/logo_swans_old.png')}
                   className="w-full h-full"
                   resizeMode="contain"
                 />

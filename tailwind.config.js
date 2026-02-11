@@ -1,9 +1,9 @@
 module.exports = {
-   content: [
+  content: [
     "./app/**/*.{js,jsx,ts,tsx}", // Covers all files in app directory
     "./components/**/*.{js,jsx,ts,tsx}",
   ],
-  presets: [require('nativewind/preset')],
+  // presets: [require('nativewind/preset')],
   theme: {
     extend: {
       colors: {

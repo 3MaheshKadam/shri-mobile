@@ -148,16 +148,11 @@ export default function ShreeKalyanamLogin() {
 
   return (
     <View style={styles.container}>
-      {/* Mandala Background Pattern */}
+      {/* Main Background Image */}
       <Image
-        source={require('../../assets/images/mandala_design.png')}
-        style={styles.mandalaTopRight}
-        resizeMode="contain"
-      />
-      <Image
-        source={require('../../assets/images/mandala_design.png')}
-        style={styles.mandalaBottomLeft}
-        resizeMode="contain"
+        source={require('../../assets/images/bg.png')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
       />
 
       <KeyboardAvoidingView
@@ -169,11 +164,13 @@ export default function ShreeKalyanamLogin() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            {/* Main Couple Image / Logo */}
-            <View style={styles.logoContainer}>
+
+
+            {/* Couple Illustration */}
+            <View style={{ alignItems: 'center', marginBottom: 20, marginTop: 40 }}>
               <Image
-                source={require('../../assets/images/couple_wedding.png')}
-                style={{ width: width * 0.8, height: 300 }}
+                source={require('../../assets/images/couple.png')}
+                style={{ width: width * 0.8, height: 350 }}
                 resizeMode="contain"
               />
             </View>
@@ -301,25 +298,15 @@ export default function ShreeKalyanamLogin() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    // backgroundColor: Colors.white, // Removed to allow BG image to show
   },
-  mandalaTopRight: {
+  backgroundImage: {
     position: 'absolute',
-    top: -100,
-    right: -100,
-    width: 300,
-    height: 300,
-    opacity: 0.15,
-    transform: [{ rotate: '45deg' }],
-  },
-  mandalaBottomLeft: {
-    position: 'absolute',
-    bottom: -100,
-    left: -100,
-    width: 300,
-    height: 300,
-    opacity: 0.15,
-    transform: [{ rotate: '-45deg' }],
+    top: 0,
+    left: 0,
+    width: width,
+    height: '100%',
+    // zIndex: -1, // Removed to ensure visibility
   },
   keyboardView: {
     flex: 1,

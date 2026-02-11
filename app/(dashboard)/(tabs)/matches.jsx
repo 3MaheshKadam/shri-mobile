@@ -57,29 +57,73 @@ const MatchesPage = () => {
     const [showFilters, setShowFilters] = useState(false);
     const insets = useSafeAreaInsets();
 
-    // Mock Data for UI Dev
     useEffect(() => {
-        // In a real scenario, fetch from API. 
-        // For now, generating mock data to match the visual design requirements.
-        const mockData = Array.from({ length: 10 }).map((_, i) => ({
-            _id: `user-${i}`,
-            name: i % 2 === 0 ? 'Savita Kedar Chvahan' : 'Isha Gangadhar Fadn...',
-            age: 24 + i,
-            dob: '13/12/1997',
-            time: '09:30 AM',
-            location: i % 2 === 0 ? 'Pune' : 'Thane',
-            education: i % 2 === 0 ? 'MBA' : 'BSc',
-            profilePhoto: `https://randomuser.me/api/portraits/women/${40 + i}.jpg`,
-            isVerified: true,
-            compatibility: 90 - i * 2,
-            isNew: i < 3,
-        }));
+        const fetchMatches = async () => {
+            try {
+                // Ensure we have a valid API URL
+                const apiUrl = Config.API_URL || 'https://mali-bandhan.vercel.app';
 
-        setTimeout(() => {
-            setMatches(mockData);
-            setIsLoading(false);
-        }, 1000);
-    }, []);
+                let genderQuery = '';
+                if (user?.gender) {
+                    const targetGender = user.gender === 'Male' ? 'Female' : 'Male';
+                    genderQuery = `&gender=${targetGender}`;
+                }
+
+                const response = await fetch(`${apiUrl}/api/users/fetchAllUsers?limit=20&page=1${genderQuery}`);
+                const data = await response.json();
+
+                if (data.success && Array.isArray(data.data)) {
+                    // Map API data to UI model
+                    const mappedMatches = data.data.map(item => {
+                        // Calculate Age from DOB
+                        let age = 'N/A';
+                        if (item.dob) {
+                            const birthDate = new Date(item.dob);
+                            const today = new Date();
+                            age = today.getFullYear() - birthDate.getFullYear();
+                            const m = today.getMonth() - birthDate.getMonth();
+                            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                                age--;
+                            }
+                        }
+
+                        // Format DOB for display (DD/MM/YYYY)
+                        const formattedDob = item.dob ? new Date(item.dob).toLocaleDateString('en-GB') : 'N/A';
+
+                        // Mocking time for now as it's not in user object
+                        const randomTime = ['09:30 AM', '10:15 AM', '02:45 PM', '06:20 PM'][Math.floor(Math.random() * 4)];
+
+                        return {
+                            _id: item._id,
+                            name: item.name || 'Unknown',
+                            age: age,
+                            dob: formattedDob,
+                            time: randomTime, // Placeholder
+                            location: item.currentCity || 'Unknown',
+                            education: item.education || item.occupation || 'Not Specified',
+                            profilePhoto: item.profilePhoto || 'https://via.placeholder.com/150',
+                            isVerified: item.isVerified || false,
+                            compatibility: Math.floor(Math.random() * (98 - 70 + 1) + 70), // Mock compatibility for now
+                            isNew: false,
+                        };
+                    });
+                    setMatches(mappedMatches);
+                } else {
+                    console.error("Failed to fetch matches:", data);
+                    Alert.alert("Error", "Could not fetch profiles.");
+                }
+            } catch (error) {
+                console.error("Error fetching matches:", error);
+                Alert.alert("Error", "Network error. Please try again.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        if (user) {
+            fetchMatches();
+        }
+    }, [user]);
 
 
     const MatchCard = memo(({ match }) => {
@@ -108,7 +152,7 @@ const MatchesPage = () => {
                         </View>
                         <View style={styles.detailItem}>
                             <Clock size={12} color={Colors.gray} />
-                            <Text style={styles.detailText}>{match.dob}</Text>
+                            <Text style={styles.detailText}>{match.dob} ({match.age} yrs)</Text>
                         </View>
                         <View style={styles.detailItem}>
                             <Clock size={12} color={Colors.gray} />
@@ -179,6 +223,11 @@ const MatchesPage = () => {
                     columnWrapperStyle={styles.columnWrapper}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={
+                        <Text style={{ textAlign: 'center', marginTop: 20, color: Colors.gray }}>
+                            No matches found.
+                        </Text>
+                    }
                 />
             )}
         </View>

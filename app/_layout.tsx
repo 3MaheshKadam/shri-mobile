@@ -1,7 +1,8 @@
-import { Stack, SplashScreen } from 'expo-router';
+import { Stack, SplashScreen, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SessionProvider } from "../context/SessionContext";
-import { View, Text, Dimensions, ActivityIndicator, Image, ImageBackground } from 'react-native';
+import { View, Text, Dimensions, ActivityIndicator, Image, ImageBackground, TouchableOpacity } from 'react-native';
+import { User } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import Animated, {
@@ -39,14 +40,9 @@ export default function RootLayout() {
         // If user has a token, we skip splash to get them to content faster
         // If user has launched before (but logged out), we also skip the long splash
 
-        const shouldShowSplash = !hasLaunched && !userToken;
-
-        if (shouldShowSplash) {
-          // Simulate loading / waiting for animation
-          // Select random image for splash if needed, for now we use the default View
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          await AsyncStorage.setItem('HAS_LAUNCHED', 'true');
-        }
+        // Show splash screen for 3 seconds on every launch
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        // await AsyncStorage.setItem('HAS_LAUNCHED', 'true');
 
         // If we don't show splash, we just proceed immediately (or minimal load time)
 
@@ -62,174 +58,21 @@ export default function RootLayout() {
   }, []);
 
   const CustomSplashScreen = () => {
-    const shimmerValue = useSharedValue(0);
-    const pulseValue = useSharedValue(1);
-    const fadeValue = useSharedValue(0);
-
-    // Random image selection for Splash
-    const splashImages = [
-      require('../assets/bgmali.png'),
-      // Add more images here if available, e.g., require('../assets/images/splash-alt.png')
-    ];
-    // Simple random selection
-    const randomImage = splashImages[Math.floor(Math.random() * splashImages.length)];
-
-
-    useEffect(() => {
-      // Initial fade in
-      fadeValue.value = withSpring(1, { damping: 10 });
-
-      // Shimmer animation
-      shimmerValue.value = withRepeat(
-        withSequence(
-          withSpring(-1, { duration: 2500 }),
-          withSpring(1, { duration: 2500 })
-        ),
-        -1,
-        true
-      );
-
-      // Pulse animation
-      pulseValue.value = withRepeat(
-        withSequence(
-          withSpring(1, { duration: 2000 }),
-          withSpring(1.05, { duration: 2000 })
-        ),
-        -1,
-        true
-      );
-    }, []);
-
-    const shimmerStyle = useAnimatedStyle(() => {
-      const translateX = interpolate(
-        shimmerValue.value,
-        [-1, 1],
-        [-width, width]
-      );
-
-      return {
-        transform: [{ translateX }],
-      };
-    });
-
-    const pulseStyle = useAnimatedStyle(() => {
-      return {
-        transform: [{ scale: pulseValue.value }],
-      };
-    });
-
-    const fadeStyle = useAnimatedStyle(() => {
-      return {
-        opacity: fadeValue.value,
-      };
-    });
-
-    // Mali Bandhan gradient colors
-    const gradientColors: string[] = [Colors.lotus, Colors.secondaryLight, Colors.primaryLight];
-
     return (
-      <Animated.View style={[fadeStyle, { flex: 1 }]}>
-        <ImageBackground
-          source={randomImage}
-          style={{ flex: 1 }}
-          resizeMode="cover"
-        >
-          <View style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-            {/* Transparent background to allow image to show */}
-            <View style={{ position: 'absolute', inset: 0, backgroundColor: 'transparent' }} />
-
-            {/* Shimmer effect */}
-            <Animated.View
-              style={[shimmerStyle, { position: 'absolute', inset: 0, width: '100%', height: '100%' }]}
-            >
-              <LinearGradient
-                colors={['transparent', 'rgba(155, 107, 158, 0.25)', 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{ width: 160, height: '100%' }}
-              />
-            </Animated.View>
-
-            {/* Glassmorphism overlay */}
-            <BlurView
-              intensity={25}
-              tint="light"
-              style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.1)' }}
-            />
-
-            {/* Content */}
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <Animated.View style={[pulseStyle, { alignItems: 'center' }]}>
-                {/* Logo */}
-                <View style={{ position: 'relative', marginBottom: 24 }}>
-                  <View
-                    style={{
-                      width: 120,
-                      height: 120,
-                      backgroundColor: 'rgba(255,255,255,0.9)',
-                      borderRadius: 20,
-                      borderWidth: 1,
-                      borderColor: Colors.borderLight,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: 16,
-                    }}
-                  >
-                    <Image
-                      source={require('../assets/images/logo.png.png')}
-                      style={{ width: '100%', height: '100%' }}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: -8,
-                      left: -8,
-                      width: 136,
-                      height: 136,
-                      backgroundColor: 'rgba(255,255,255,0.2)',
-                      borderRadius: 20,
-                      opacity: 0.5,
-                    }}
-                  />
-                </View>
-
-                {/* App name */}
-                <Text
-                  style={{
-                    fontSize: 40,
-                    fontWeight: '700',
-                    color: Colors.primary,
-                    fontFamily: 'SpaceMono',
-                    textAlign: 'center',
-                  }}
-                >
-                  Shree-Kalyanam
-                </Text>
-                <Text style={{
-                  fontSize: 16,
-                  color: Colors.textSecondary,
-                  marginTop: 8,
-                  fontFamily: 'SpaceMono',
-                  textAlign: 'center',
-                }}>
-                  Finding the Right Match, with Trust
-                </Text>
-
-                {/* Loading indicator */}
-                <View style={{ marginTop: 32 }}>
-                  <ActivityIndicator size="large" color={Colors.primary} />
-                </View>
-              </Animated.View>
-            </View>
-          </View>
-        </ImageBackground>
-      </Animated.View>
+      <View style={{ flex: 1, backgroundColor: '#FFF0F5', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ alignItems: 'center', width: '100%', height: '100%', justifyContent: 'center' }}>
+          <Image
+            source={require('../assets/images/flash.png')}
+            style={{ width: '80%', height: '80%' }}
+            resizeMode="contain"
+          />
+        </View>
+      </View>
     );
   };
 
   const ShreeKalyanamHeader = () => {
+    const router = useRouter();
     return (
       <View>
         {/* Gradient Background - Removed for clearer UI on dashboard */}
@@ -259,7 +102,7 @@ export default function RootLayout() {
             }}
           >
             <Image
-              source={require('../assets/images/logo.png.png')}
+              source={require('../assets/images/logo_swans_old.png')}
               style={{ width: '100%', height: '100%' }}
               resizeMode="contain"
             />
@@ -279,6 +122,21 @@ export default function RootLayout() {
               </Text>
             </View>
           </View>
+
+          {/* Profile Button */}
+          <TouchableOpacity
+            onPress={() => router.push('/(dashboard)/(tabs)/profile')}
+            style={{
+              width: 40,
+              height: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              borderRadius: 20,
+            }}
+          >
+            <User size={20} color={Colors.white} />
+          </TouchableOpacity>
         </View>
 
         {/* Bottom Accent Bar - Lighter gradient */}

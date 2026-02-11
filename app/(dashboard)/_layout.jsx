@@ -1,47 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
-import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { View, TouchableOpacity, StyleSheet, Dimensions, Text } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
   withSpring,
-  Easing,
+  withTiming,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Heart, Users, User, Settings } from 'lucide-react-native';
 import { useSession } from '../../context/SessionContext';
 import { Redirect } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../../constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BackHandler } from 'react-native';
+import { usePathname, useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
-const TAB_WIDTH = width / 4;
 
+// Functional Component for Icon
 const TabBarIcon = ({ name, color, focused, size = 20 }) => {
-  const scale = useSharedValue(focused ? 1 : 0.9);
-  const rotate = useSharedValue(0);
-
-  useEffect(() => {
-    if (focused) {
-      scale.value = withSpring(1, { damping: 8, stiffness: 100 });
-      rotate.value = withSpring(360, { damping: 10, stiffness: 80 });
-    } else {
-      scale.value = withSpring(0.9, { damping: 8, stiffness: 100 });
-      rotate.value = withTiming(0, { duration: 200 });
-    }
-  }, [focused]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { rotate: `${rotate.value}deg` }
-    ],
-  }));
-
   const IconComponent = {
     heart: Heart,
     users: Users,
@@ -50,62 +28,30 @@ const TabBarIcon = ({ name, color, focused, size = 20 }) => {
   }[name] || User;
 
   return (
-    <Animated.View style={animatedStyle}>
-      <IconComponent
-        size={size}
-        color={color}
-        strokeWidth={focused ? 2.5 : 2}
-        fill={focused ? color : 'transparent'}
-      />
-    </Animated.View>
+    <IconComponent
+      size={size}
+      color={color}
+      strokeWidth={focused ? 2.5 : 2}
+      fill={focused ? color : 'transparent'}
+    />
   );
 };
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
-  const translateX = useSharedValue(0);
-  const pillWidth = useSharedValue(TAB_WIDTH - 16);
 
-  useEffect(() => {
-    // Smooth sliding pill animation
-    translateX.value = withTiming(state.index * TAB_WIDTH, {
-      duration: 300,
-      easing: Easing.out(Easing.cubic)
-    });
-  }, [state.index]);
-
-  const pillStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-    width: pillWidth.value,
-  }));
+  const visibleRoutes = state.routes.filter(route => {
+    const { options } = descriptors[route.key];
+    return options.href !== null && route.name !== '(tabs)/profile';
+  });
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.tabBarWrapper, { paddingBottom: insets.bottom }]}>
-        {/* Transparent Glass Effect */}
-        <BlurView
-          intensity={80}
-          tint="light"
-          style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]}
-        />
-
-        {/* Subtle top border */}
-        <View style={[styles.topBorder, { backgroundColor: 'rgba(255,255,255,0.2)' }]} />
-
+    <View style={[styles.container, { paddingBottom: insets.bottom > 0 ? insets.bottom : 20 }]}>
+      <View style={styles.tabBarWrapper}>
         <View style={styles.tabBar}>
-          {/* Sliding Pill Background - slightly more transparent */}
-          <Animated.View style={[styles.pillContainer, pillStyle]} pointerEvents="none">
-            <LinearGradient
-              colors={[`${Colors.primary}CC`, `${Colors.primaryLight}CC`]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.pill}
-            />
-          </Animated.View>
-
-          {state.routes.map((route, index) => {
+          {visibleRoutes.map((route, index) => {
             const { options } = descriptors[route.key];
-            const isFocused = state.index === index;
+            const isFocused = state.index === state.routes.findIndex(r => r.key === route.key);
 
             if (!options.tabBarIcon) return null;
 
@@ -114,7 +60,6 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 route.name.includes('profile') ? 'user' : 'settings';
 
             const onPress = () => {
-              console.log('Tab pressed:', route.name, 'Is focused:', isFocused);
               const event = navigation.emit({
                 type: 'tabPress',
                 target: route.key,
@@ -122,9 +67,8 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               });
 
               if (!isFocused && !event.defaultPrevented) {
-                console.log('Navigating to:', route.name);
                 navigation.navigate(route.name);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }
             };
 
@@ -145,16 +89,24 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 };
 
 const TabButton = ({ iconName, label, isFocused, onPress }) => {
-  const labelOpacity = useSharedValue(0.6);
+  const scale = useSharedValue(isFocused ? 1 : 0.9);
+  const translateY = useSharedValue(isFocused ? -5 : 0);
 
   useEffect(() => {
-    labelOpacity.value = withTiming(isFocused ? 1 : 0.6, {
-      duration: 200
-    });
+    if (isFocused) {
+      scale.value = withSpring(1.1, { damping: 10, stiffness: 100 });
+      translateY.value = withSpring(-5, { damping: 10, stiffness: 100 });
+    } else {
+      scale.value = withSpring(0.9, { damping: 10, stiffness: 100 });
+      translateY.value = withSpring(0, { damping: 10, stiffness: 100 });
+    }
   }, [isFocused]);
 
-  const labelStyle = useAnimatedStyle(() => ({
-    opacity: labelOpacity.value,
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: scale.value },
+      { translateY: translateY.value }
+    ],
   }));
 
   return (
@@ -163,31 +115,32 @@ const TabButton = ({ iconName, label, isFocused, onPress }) => {
       style={styles.tabButton}
       activeOpacity={0.7}
     >
-      <View style={styles.iconContainer}>
+      <Animated.View style={[styles.iconContainer, animatedStyle]}>
+        {/* Glow Effect for Active Tab - Simple View, no Blur to avoid errors */}
+        {isFocused && (
+          <View style={[styles.glow, { backgroundColor: Colors.primaryLight }]} />
+        )}
+
         <TabBarIcon
           name={iconName}
-          color={isFocused ? Colors.white : Colors.textLight}
+          color={isFocused ? Colors.primary : Colors.gray} // Gray when inactive
           focused={isFocused}
-          size={isFocused ? 22 : 20}
+          size={24}
         />
-      </View>
+      </Animated.View>
 
-      <Animated.Text
+      <Text
         style={[
           styles.label,
-          { color: isFocused ? Colors.white : Colors.textLight },
-          labelStyle
+          { color: isFocused ? Colors.primary : Colors.gray, fontWeight: isFocused ? '700' : '500' }
         ]}
         numberOfLines={1}
       >
         {label}
-      </Animated.Text>
+      </Text>
     </TouchableOpacity>
   );
 };
-
-import { BackHandler, Alert } from 'react-native';
-import { usePathname, useRouter } from 'expo-router';
 
 export default function MaliBandhanDashboardLayout() {
   const { user } = useSession();
@@ -197,16 +150,12 @@ export default function MaliBandhanDashboardLayout() {
   // Intelligent Back Button Handling
   useEffect(() => {
     const backAction = () => {
-      // Check if we are currently on the "Matches" (Home) tab
-      // Pathname might contain deep links, so we check for inclusion
       const isHomeTab = pathname.includes('matches');
 
       if (!isHomeTab) {
-        // If on another tab (Profile, Settings, etc.), go back to Matches
         router.push('/(dashboard)/(tabs)/matches');
-        return true; // Prevent default behavior (exiting)
+        return true;
       } else {
-        // If already on Matches, exit the app
         BackHandler.exitApp();
         return true;
       }
@@ -227,8 +176,8 @@ export default function MaliBandhanDashboardLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.white,
-        tabBarInactiveTintColor: Colors.textLight,
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.gray,
         headerShown: false,
       }}
       tabBar={props => <CustomTabBar {...props} />}
@@ -255,6 +204,7 @@ export default function MaliBandhanDashboardLayout() {
       <Tabs.Screen
         name="(tabs)/profile"
         options={{
+          href: null,
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon name="user" color={color} focused={focused} />
@@ -298,58 +248,56 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    alignItems: 'center',
+    // Removed zIndex/elevation from here, handle in wrapper
   },
   tabBarWrapper: {
-    position: 'relative',
-  },
-  topBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    zIndex: 1,
-  },
-  gradient: {
-    paddingBottom: 8,
-    paddingTop: 8,
+    width: width - 40, // 20px padding on each side
+    borderRadius: 35,
+    backgroundColor: 'rgba(255, 255, 255, 0.96)', // Almost opaque for "faux glass"
+    shadowColor: Colors.primary, // Colored shadow
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+    marginBottom: 0, // Padding handled by container
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 1)',
   },
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 8,
-    position: 'relative',
-    paddingVertical: 4,
+    paddingVertical: 12,
+    height: 75,
   },
   tabButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    zIndex: 2,
+    height: '100%',
   },
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 3,
+    marginBottom: 4,
+    width: 50,
+    height: 50,
+  },
+  glow: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    opacity: 0.2,
+    transform: [{ scale: 1.2 }],
   },
   label: {
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-    fontFamily: 'SpaceMono',
+    fontSize: 11,
+    letterSpacing: 0.2, // Clean sans-serif
     textAlign: 'center',
-  },
-  pillContainer: {
-    position: 'absolute',
-    left: 8,
-    top: 4,
-    bottom: 4,
-    zIndex: 1,
-  },
-  pill: {
-    flex: 1,
-    borderRadius: 12,
   },
 });
