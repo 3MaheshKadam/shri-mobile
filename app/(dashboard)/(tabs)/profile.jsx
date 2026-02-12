@@ -208,40 +208,145 @@ export default function MyProfilePage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const payload = { ...formData, userId: user?.user?.id || user?.id };
-      // Update logic...
-      const response = await fetch(`${Config.API_URL}/api/users/update`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (response.ok) {
-        alert('Profile Saved!');
+      const { updateUserProfile } = await import('@/utils/api');
+      const response = await updateUserProfile(formData);
+
+      if (response.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        alert('Profile Saved Successfully!');
       } else {
-        alert('Failed to save.');
+        alert('Failed to save profile.');
       }
     } catch (e) {
       console.error(e);
-      alert('Error saving.');
+      alert('Error saving profile.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Photo logic...
-  const pickImage = async (id) => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 5],
-      quality: 1,
-    });
+  // Upload photo to Cloudinary
+  const uploadToCloudinary = async (uri) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', {
+        uri,
+        type: 'image/jpeg',
+        name: 'photo.jpg',
+      });
+      formData.append('upload_preset', 'shivbandhan');
+      formData.append('cloud_name', 'dqfum2awz');
 
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setPhotos(prev => prev.map(p => p.id === id ? { ...p, url: uri } : p));
-      if (id === 1) handleInputChange('profilePhoto', uri);
+      const response = await fetch(
+        'https://api.cloudinary.com/v1_1/dqfum2awz/image/upload',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+      return data.secure_url;
+    } catch (error) {
+      console.error('Cloudinary upload error:', error);
+      throw error;
+    }
+  };
+
+  // Photo logic with Cloudinary upload
+  const pickImage = async (photoId) => {
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 5],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        const uri = result.assets[0].uri;
+
+        // Show loading state
+        setPhotos(prev => prev.map(p =>
+          p.id === photoId ? { ...p, uploading: true } : p
+        ));
+
+        // Upload to Cloudinary
+        const cloudinaryUrl = await uploadToCloudinary(uri);
+
+        // Update photos state
+        setPhotos(prev => prev.map(p =>
+          p.id === photoId ? { ...p, url: cloudinaryUrl, uploading: false } : p
+        ));
+
+        // Update user profile with new photo
+        const { updatePhoto } = await import('@/utils/api');
+        const isPrimary = photoId === 1;
+
+        await updatePhoto({
+          url: cloudinaryUrl,
+          isPrimary: isPrimary
+        });
+
+        // If it's the primary photo, update formData
+        if (isPrimary) {
+          handleInputChange('profilePhoto', cloudinaryUrl);
+        }
+
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error('Photo upload error:', error);
+      alert('Failed to upload photo. Please try again.');
+      setPhotos(prev => prev.map(p =>
+        p.id === photoId ? { ...p, uploading: false } : p
+      ));
+    }
+  };
+
+  const setPrimaryPhoto = async (photoId) => {
+    try {
+      const photo = photos.find(p => p.id === photoId);
+      if (!photo || !photo.url) return;
+
+      setPhotos(prev => prev.map(p => ({
+        ...p,
+        isPrimary: p.id === photoId
+      })));
+
+      const { updatePhoto } = await import('@/utils/api');
+      await updatePhoto({
+        url: photo.url,
+        isPrimary: true
+      });
+
+      handleInputChange('profilePhoto', photo.url);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error('Set primary photo error:', error);
+      alert('Failed to set primary photo.');
+    }
+  };
+
+  const deletePhoto = async (photoId) => {
+    try {
+      const photo = photos.find(p => p.id === photoId);
+      if (!photo || !photo.url) return;
+
+      setPhotos(prev => prev.map(p =>
+        p.id === photoId ? { ...p, url: null, isPrimary: false } : p
+      ));
+
+      const { updatePhoto } = await import('@/utils/api');
+      await updatePhoto({
+        url: photo.url,
+        delete: true
+      });
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error('Delete photo error:', error);
+      alert('Failed to delete photo.');
     }
   };
 
@@ -266,14 +371,47 @@ export default function MyProfilePage() {
             {section.label.toLowerCase().includes('photo') ? (
               <View style={styles.photosGrid}>
                 {photos.map(photo => (
-                  <TouchableOpacity key={photo.id} style={styles.photoBox} onPress={() => pickImage(photo.id)}>
-                    {photo.url ? (
-                      <Image source={{ uri: photo.url }} style={styles.photo} />
-                    ) : (
-                      <Plus size={24} color={Colors.primary} />
-                    )}
-                    {photo.isPrimary && <View style={styles.primaryBadge}><Text style={styles.primaryText}>Main</Text></View>}
-                  </TouchableOpacity>
+                  <View key={photo.id} style={styles.photoBoxContainer}>
+                    <TouchableOpacity
+                      style={styles.photoBox}
+                      onPress={() => pickImage(photo.id)}
+                      disabled={photo.uploading}
+                    >
+                      {photo.uploading ? (
+                        <ActivityIndicator size="large" color={Colors.primary} />
+                      ) : photo.url ? (
+                        <>
+                          <Image source={{ uri: photo.url }} style={styles.photo} />
+                          {photo.isPrimary && (
+                            <View style={styles.primaryBadge}>
+                              <Text style={styles.primaryText}>Primary</Text>
+                            </View>
+                          )}
+                          <View style={styles.photoActions}>
+                            {!photo.isPrimary && (
+                              <TouchableOpacity
+                                style={styles.photoActionBtn}
+                                onPress={() => setPrimaryPhoto(photo.id)}
+                              >
+                                <Text style={styles.photoActionText}>Set Primary</Text>
+                              </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                              style={[styles.photoActionBtn, styles.deleteBtn]}
+                              onPress={() => deletePhoto(photo.id)}
+                            >
+                              <X size={16} color="white" />
+                            </TouchableOpacity>
+                          </View>
+                        </>
+                      ) : (
+                        <View style={styles.photoPlaceholder}>
+                          <Camera size={32} color={Colors.primary} />
+                          <Text style={styles.photoPlaceholderText}>Add Photo</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
                 ))}
               </View>
             ) : (
@@ -576,8 +714,11 @@ const styles = StyleSheet.create({
     gap: 10,
     justifyContent: 'center',
   },
-  photoBox: {
+  photoBoxContainer: {
     width: (width - 80) / 2,
+  },
+  photoBox: {
+    width: '100%',
     height: (width - 80) / 2 * 1.2,
     backgroundColor: Colors.borderLight,
     borderRadius: 10,
@@ -589,19 +730,59 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  photoPlaceholder: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  photoPlaceholderText: {
+    fontSize: 12,
+    color: Colors.gray,
+    fontFamily: 'SpaceMono',
+  },
+  photoActions: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 5,
+    gap: 5,
+  },
+  photoActionBtn: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoActionText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: 'SpaceMono',
+  },
+  deleteBtn: {
+    backgroundColor: Colors.danger,
+    flex: 0,
+    paddingHorizontal: 8,
+  },
   primaryBadge: {
     position: 'absolute',
     top: 5,
     left: 5,
     backgroundColor: Colors.success,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 5,
   },
   primaryText: {
     color: 'white',
     fontSize: 10,
     fontWeight: 'bold',
+    fontFamily: 'SpaceMono',
   },
   saveButton: {
     marginTop: 30,

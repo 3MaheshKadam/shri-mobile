@@ -92,15 +92,15 @@ export default function InterestsPage() {
   // Fetch interests from API
   const fetchInterests = async (type) => {
     try {
-      if (!user?.id && !user?.user?.id) return [];
-      const userId = user?.id ? user.id : user.user.id;
-      const endpoint = type === 'send'
-        ? `${Config.API_URL}/api/interest/send?userId=${userId}`
-        : `${Config.API_URL}/api/interest/received?userId=${userId}`;
-      const response = await fetch(endpoint);
-      const data = await response.json();
-      if (!response.ok) throw new Error('Failed to fetch data');
-      return data;
+      const { getReceivedInterests, getSentInterests } = await import('@/utils/api');
+
+      if (type === 'send') {
+        const response = await getSentInterests();
+        return response;
+      } else {
+        const response = await getReceivedInterests();
+        return response;
+      }
     } catch (err) {
       throw err;
     }
@@ -139,13 +139,14 @@ export default function InterestsPage() {
   // Handle interest actions (accept/decline/cancel)
   const handleInterestAction = async (action, interestId) => {
     try {
-      const response = await fetch(`${Config.API_URL}/api/interest/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: action, interestId })
-      });
-      if (!response.ok) throw new Error('Action failed');
-      loadAllData();
+      const { updateInterestStatus } = await import('@/utils/api');
+      const response = await updateInterestStatus(interestId, action);
+
+      if (response.success) {
+        loadAllData(); // Refresh the list
+      } else {
+        setError(response.message || 'Action failed');
+      }
     } catch (err) {
       setError(err.message);
     }

@@ -62,21 +62,17 @@ export default function ShreeKalyanamLogin() {
     return phoneRegex.test(phone.replace(/\s/g, ''));
   };
 
-  const handleSendOTP = () => {
+  const handleSendOTP = async () => {
     setError('');
     if (!validatePhoneNumber(phoneNumber)) {
       setError('Please enter a valid 10-digit mobile number');
       return;
     }
 
-    setIsLoading(true);
-    // Simulate sending OTP
-    setTimeout(() => {
-      setStep(2);
-      setResendTimer(30);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setIsLoading(false);
-    }, 1000);
+    // Skip OTP sending, directly go to OTP entry
+    setStep(2);
+    setResendTimer(30);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleOTPChange = (index, value) => {
@@ -101,32 +97,67 @@ export default function ShreeKalyanamLogin() {
 
     setIsLoading(true);
     setError('');
-    // Static OTP verification
-    if (otpString === '123456') {
-      const cleanedPhone = phoneNumber.replace(/\s/g, '');
-      const fullPhoneNumber = `${countryCode}${cleanedPhone}`;
-      const success = await login(fullPhoneNumber);
 
-      if (success) {
+    try {
+      const { verifyOTP } = await import('@/utils/api');
+      const response = await verifyOTP(phoneNumber, otpString);
+
+      if (response.success) {
+        // Store user data and token
+        await AsyncStorage.setItem('user', JSON.stringify(response.user));
+        await AsyncStorage.setItem('authToken', response.token || '');
+        await AsyncStorage.setItem('userId', response.userId);
+
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        // Proceed to Terms & Conditions step
-        setStep(3);
+
+        // Update session context
+        const success = await login(response.userId);
+
+        if (success) {
+          // Check if new user needs profile setup
+          if (response.isNewUser) {
+            router.push('/(auth)/profile-setup');
+          } else {
+            // Proceed to Terms & Conditions step
+            setStep(3);
+          }
+        } else {
+          setError('Login failed. Please try again.');
+        }
       } else {
-        setError('Login failed. Please check your internet connection.');
+        setError(response.error || 'Invalid OTP');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
-    } else {
-      // Fallback for demo if API fails
-      setError('Invalid OTP');
+    } catch (error) {
+      console.error('Verify OTP Error:', error);
+      setError('Failed to verify OTP. Please try again.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
-  const handleResendOTP = () => {
+  const handleResendOTP = async () => {
     setOtp(['', '', '', '', '', '']);
     setError('');
-    setResendTimer(30);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsLoading(true);
+
+    try {
+      const { sendOTP } = await import('@/utils/api');
+      const response = await sendOTP(phoneNumber);
+
+      if (response.success) {
+        setResendTimer(30);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } else {
+        setError(response.message || 'Failed to resend OTP');
+      }
+    } catch (error) {
+      console.error('Resend OTP Error:', error);
+      setError('Failed to resend OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const formatPhoneDisplay = (phone) => {

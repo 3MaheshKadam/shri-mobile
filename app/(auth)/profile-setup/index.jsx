@@ -1,145 +1,139 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import {
+    View,
+    Text,
+    ScrollView,
+    TouchableOpacity,
+    StyleSheet,
+    Dimensions,
+    KeyboardAvoidingView,
+    Platform,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '../../../constants/Colors';
-import { Calendar, Clock, MapPin, User, Users } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Colors } from '@/constants/Colors';
+import * as Haptics from 'expo-haptics';
 
-export default function PersonalInfo() {
+// Import step components
+import Step1BasicInfo from './step1';
+import Step2ReligiousInfo from './step2';
+import Step3EducationCareer from './step3';
+import Step4FamilyDetails from './step4';
+import Step5PartnerPreferences from './step5';
+import Step6PhotoUpload from './step6';
+
+const { width } = Dimensions.get('window');
+
+const STEPS = [
+    { id: 1, title: 'Basic Info', component: Step1BasicInfo },
+    { id: 2, title: 'Religious Info', component: Step2ReligiousInfo },
+    { id: 3, title: 'Education & Career', component: Step3EducationCareer },
+    { id: 4, title: 'Family Details', component: Step4FamilyDetails },
+    { id: 5, title: 'Partner Preferences', component: Step5PartnerPreferences },
+    { id: 6, title: 'Photos', component: Step6PhotoUpload },
+];
+
+export default function ProfileSetup() {
     const router = useRouter();
-    const [formData, setFormData] = useState({
-        fullName: '',
-        dob: '',
-        birthTime: '',
-        birthLocation: '',
-        fatherName: '',
-        motherName: '',
-    });
+    const [currentStep, setCurrentStep] = useState(1);
+    const [formData, setFormData] = useState({});
+    const [isSaving, setIsSaving] = useState(false);
 
-    const handleNext = () => {
-        // Basic validation could go here
-        router.push('/(auth)/profile-setup/step2');
+    const handleNext = (stepData) => {
+        setFormData(prev => ({ ...prev, ...stepData }));
+
+        if (currentStep < STEPS.length) {
+            setCurrentStep(currentStep + 1);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        } else {
+            handleComplete();
+        }
     };
+
+    const handleBack = () => {
+        if (currentStep > 1) {
+            setCurrentStep(currentStep - 1);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+    };
+
+    const handleComplete = async () => {
+        setIsSaving(true);
+        try {
+            const { updateUserProfile } = await import('@/utils/api');
+            const response = await updateUserProfile(formData);
+
+            if (response.success) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                router.replace('/(dashboard)/(tabs)/matches');
+            } else {
+                alert('Failed to save profile. Please try again.');
+            }
+        } catch (error) {
+            console.error('Profile setup error:', error);
+            alert('Error saving profile. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const CurrentStepComponent = STEPS[currentStep - 1].component;
+    const progress = (currentStep / STEPS.length) * 100;
 
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <View style={styles.header}>
-                    <View style={styles.stepIndicator}>
-                        <View style={[styles.stepDot, styles.activeStep]} />
-                        <View style={styles.stepLine} />
-                        <View style={[styles.stepDot, styles.inactiveStep]} />
+            {/* Header with Progress */}
+            <LinearGradient
+                colors={[Colors.primary, Colors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.header}
+            >
+                <Text style={styles.headerTitle}>Complete Your Profile</Text>
+                <Text style={styles.headerSubtitle}>
+                    Step {currentStep} of {STEPS.length}
+                </Text>
+
+                {/* Progress Bar */}
+                <View style={styles.progressContainer}>
+                    <View style={styles.progressBar}>
+                        <View style={[styles.progressFill, { width: `${progress}%` }]} />
                     </View>
-                    <Text style={styles.title}>Information</Text>
-                    <Text style={styles.subtitle}>Let's start with your basic details</Text>
+                    <Text style={styles.progressText}>{Math.round(progress)}%</Text>
                 </View>
 
-                <View style={styles.form}>
-                    {/* Full Name */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Full Name *</Text>
-                        <View style={styles.inputContainer}>
-                            <User size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter your full name"
-                                value={formData.fullName}
-                                onChangeText={(text) => setFormData({ ...formData, fullName: text })}
-                                placeholderTextColor={Colors.gray}
-                            />
-                        </View>
-                    </View>
-
-                    {/* DOB */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Date of Birth *</Text>
-                        <View style={styles.inputContainer}>
-                            <Calendar size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="DD/MM/YYYY"
-                                value={formData.dob}
-                                onChangeText={(text) => setFormData({ ...formData, dob: text })}
-                                placeholderTextColor={Colors.gray}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Birth Time */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Birth Time *</Text>
-                        <View style={styles.inputContainer}>
-                            <Clock size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="e.g. 10:30 AM"
-                                value={formData.birthTime}
-                                onChangeText={(text) => setFormData({ ...formData, birthTime: text })}
-                                placeholderTextColor={Colors.gray}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Birth Location */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Birth Location *</Text>
-                        <View style={styles.inputContainer}>
-                            <MapPin size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="City, State"
-                                value={formData.birthLocation}
-                                onChangeText={(text) => setFormData({ ...formData, birthLocation: text })}
-                                placeholderTextColor={Colors.gray}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Father Name */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Father Name</Text>
-                        <View style={styles.inputContainer}>
-                            <Users size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter father's name"
-                                value={formData.fatherName}
-                                onChangeText={(text) => setFormData({ ...formData, fatherName: text })}
-                                placeholderTextColor={Colors.gray}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Mother Name */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Mother Name</Text>
-                        <View style={styles.inputContainer}>
-                            <Users size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter mother's name"
-                                value={formData.motherName}
-                                onChangeText={(text) => setFormData({ ...formData, motherName: text })}
-                                placeholderTextColor={Colors.gray}
-                            />
-                        </View>
-                    </View>
-
-                    <TouchableOpacity style={styles.button} onPress={handleNext}>
-                        <LinearGradient
-                            colors={[Colors.primary, Colors.secondary]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.gradient}
-                        >
-                            <Text style={styles.buttonText}>Next</Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
+                {/* Step Indicators */}
+                <View style={styles.stepIndicators}>
+                    {STEPS.map((step) => (
+                        <View
+                            key={step.id}
+                            style={[
+                                styles.stepDot,
+                                step.id === currentStep && styles.stepDotActive,
+                                step.id < currentStep && styles.stepDotCompleted,
+                            ]}
+                        />
+                    ))}
                 </View>
+            </LinearGradient>
 
+            {/* Step Content */}
+            <ScrollView
+                style={styles.content}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+            >
+                <CurrentStepComponent
+                    data={formData}
+                    onNext={handleNext}
+                    onBack={handleBack}
+                    isFirst={currentStep === 1}
+                    isLast={currentStep === STEPS.length}
+                    isSaving={isSaving}
+                />
             </ScrollView>
         </KeyboardAvoidingView>
     );
@@ -148,100 +142,79 @@ export default function PersonalInfo() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    scrollContent: {
-        padding: 24,
-        paddingBottom: 40,
+        backgroundColor: Colors.white,
     },
     header: {
-        marginBottom: 30,
+        paddingTop: 60,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 25,
+        borderBottomRightRadius: 25,
     },
-    title: {
-        fontSize: 28,
+    headerTitle: {
+        fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.primary,
-        fontFamily: 'SpaceMono',
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: Colors.textSecondary,
+        color: 'white',
+        textAlign: 'center',
+        marginBottom: 5,
         fontFamily: 'SpaceMono',
     },
-    stepIndicator: {
+    headerSubtitle: {
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.9)',
+        textAlign: 'center',
+        marginBottom: 15,
+        fontFamily: 'SpaceMono',
+    },
+    progressContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
-        justifyContent: 'center'
+        gap: 10,
+        marginBottom: 15,
     },
-    stepDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
+    progressBar: {
+        flex: 1,
+        height: 8,
+        backgroundColor: 'rgba(255,255,255,0.3)',
+        borderRadius: 4,
+        overflow: 'hidden',
     },
-    activeStep: {
-        backgroundColor: Colors.primary,
+    progressFill: {
+        height: '100%',
+        backgroundColor: 'white',
+        borderRadius: 4,
     },
-    inactiveStep: {
-        backgroundColor: Colors.borderLight,
+    progressText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
+        fontFamily: 'SpaceMono',
+        minWidth: 40,
+        textAlign: 'right',
     },
-    stepLine: {
-        width: 40,
-        height: 2,
-        backgroundColor: Colors.borderLight,
-        marginHorizontal: 8,
-    },
-    form: {
-        gap: 20,
-    },
-    inputGroup: {
+    stepIndicators: {
+        flexDirection: 'row',
+        justifyContent: 'center',
         gap: 8,
     },
-    label: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.primary,
-        fontFamily: 'SpaceMono',
+    stepDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: 'rgba(255,255,255,0.4)',
     },
-    inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: Colors.borderLight,
-        borderRadius: 12,
-        backgroundColor: Colors.white,
-        paddingHorizontal: 12,
-        height: 50,
+    stepDotActive: {
+        width: 24,
+        backgroundColor: 'white',
     },
-    inputIcon: {
-        marginRight: 10,
+    stepDotCompleted: {
+        backgroundColor: 'rgba(255,255,255,0.8)',
     },
-    input: {
+    content: {
         flex: 1,
-        fontSize: 16,
-        color: Colors.textPrimary,
-        fontFamily: 'SpaceMono',
-        height: '100%',
     },
-    button: {
-        borderRadius: 12,
-        overflow: 'hidden',
-        marginTop: 20,
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    gradient: {
-        paddingVertical: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    buttonText: {
-        color: 'white',
-        fontSize: 18,
-        fontWeight: 'bold',
-        fontFamily: 'SpaceMono',
+    contentContainer: {
+        padding: 20,
+        paddingBottom: 40,
     },
 });

@@ -162,33 +162,60 @@ export function SessionProvider({ children }) {
   // Login function
   const login = async (userId) => {
     try {
-      console.log('Attempting login for userId:', userId);
-      console.log('Login API URL:', `${Config.API_URL}/api/session`);
+      console.log('SessionContext: Logging in user:', userId);
 
-      const response = await fetch(`${Config.API_URL}/api/session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-      });
+      // Fetch user data from API
+      const { getCurrentUser } = await import('@/utils/api');
+      const response = await getCurrentUser();
 
-      console.log('Login Response Status:', response.status);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Login Success Data:', data);
-        setUser(data.user);
-        await AsyncStorage.setItem('user', JSON.stringify(data.user));
-        await AsyncStorage.setItem('authToken', data.token);
-        console.log('Logged in user ID:', data.user.id, 'Phone:', data.user?.phone || data.user?.phoneNumber);
-        router.push('/(dashboard)/matches');  // Navigate to dashboard after successful login
+      if (response.success && response.user) {
+        console.log('SessionContext: User data fetched:', response.user);
+        setUser(response.user);
+        await AsyncStorage.setItem('user', JSON.stringify(response.user));
         return true;
-      } else {
-        const errorData = await response.text();
-        console.error('Login Failed Response:', errorData);
       }
+
       return false;
     } catch (error) {
-      console.error('Login failed with exception:', error);
+      console.error('Login failed:', error);
+      return false;
+    }
+  };
+
+  // Update user function
+  const updateUser = async (userData) => {
+    try {
+      const { updateUserProfile } = await import('@/utils/api');
+      const response = await updateUserProfile(userData);
+
+      if (response.success && response.user) {
+        setUser(response.user);
+        await AsyncStorage.setItem('user', JSON.stringify(response.user));
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Update user failed:', error);
+      return false;
+    }
+  };
+
+  // Refresh user data
+  const refreshUser = async () => {
+    try {
+      const { getCurrentUser } = await import('@/utils/api');
+      const response = await getCurrentUser();
+
+      if (response.success && response.user) {
+        setUser(response.user);
+        await AsyncStorage.setItem('user', JSON.stringify(response.user));
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Refresh user failed:', error);
       return false;
     }
   };
@@ -220,8 +247,12 @@ export function SessionProvider({ children }) {
     loading,
     login,
     logout,
+    updateUser,
+    refreshUser,
     isAuthenticated: !!user,
     isPhoneVerified: user?.phoneIsVerified || false,
+    subscriptionPlan: user?.subscription?.plan || 'free',
+    isSubscribed: user?.subscription?.isSubscribed || false,
   };
 
   return (
