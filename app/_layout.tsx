@@ -115,7 +115,7 @@ export default function RootLayout() {
                 fontSize: 18,
                 fontWeight: '700',
                 color: Colors.white,
-                fontFamily: 'SpaceMono',
+                
                 letterSpacing: -0.3,
               }}>
                 Shree-Kalyanam

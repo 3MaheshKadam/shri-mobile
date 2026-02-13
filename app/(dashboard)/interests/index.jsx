@@ -127,13 +127,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+    
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 13,
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+    
   },
   listContent: {
     padding: 16,
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+    
     textAlign: 'center',
   },
   interestLabelSelected: {

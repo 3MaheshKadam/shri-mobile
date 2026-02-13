@@ -168,10 +168,14 @@ export function SessionProvider({ children }) {
       const { getCurrentUser } = await import('@/utils/api');
       const response = await getCurrentUser();
 
-      if (response.success && response.user) {
-        console.log('SessionContext: User data fetched:', response.user);
-        setUser(response.user);
-        await AsyncStorage.setItem('user', JSON.stringify(response.user));
+      console.log('SessionContext: getCurrentUser raw response:', JSON.stringify(response));
+
+      const finalUser = response.user || (response._id || response.id ? response : null);
+
+      if (finalUser) {
+        console.log('SessionContext: User data fetched:', finalUser);
+        setUser(finalUser);
+        await AsyncStorage.setItem('user', JSON.stringify(finalUser));
         return true;
       }
 

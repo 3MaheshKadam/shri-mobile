@@ -165,13 +165,13 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: Colors.textPrimary,
         marginBottom: 5,
-        fontFamily: 'SpaceMono',
+        
     },
     stepSubtitle: {
         fontSize: 14,
         color: Colors.textSecondary,
         marginBottom: 25,
-        fontFamily: 'SpaceMono',
+        
     },
     inputGroup: {
         marginBottom: 20,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: Colors.textPrimary,
         marginBottom: 8,
-        fontFamily: 'SpaceMono',
+        
     },
     inputContainer: {
         flexDirection: 'row',
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 16,
         color: Colors.textPrimary,
-        fontFamily: 'SpaceMono',
+        
     },
     buttonRow: {
         flexDirection: 'row',
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
         color: Colors.textPrimary,
         fontSize: 16,
         fontWeight: 'bold',
-        fontFamily: 'SpaceMono',
+        
     },
     nextButton: {
         flex: 2,
@@ -236,6 +236,6 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: 'bold',
-        fontFamily: 'SpaceMono',
+        
     },
 });

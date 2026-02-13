@@ -209,7 +209,8 @@ export default function MyProfilePage() {
     setIsSaving(true);
     try {
       const { updateUserProfile } = await import('@/utils/api');
-      const response = await updateUserProfile(formData);
+      const userId = user?.id || user?._id;
+      const response = await updateUserProfile({ ...formData, userId });
 
       if (response.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -228,17 +229,24 @@ export default function MyProfilePage() {
   // Upload photo to Cloudinary
   const uploadToCloudinary = async (uri) => {
     try {
+      const cloudName = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+      if (!cloudName || !uploadPreset) {
+        throw new Error('Cloudinary configuration missing');
+      }
+
       const formData = new FormData();
       formData.append('file', {
         uri,
         type: 'image/jpeg',
         name: 'photo.jpg',
       });
-      formData.append('upload_preset', 'shivbandhan');
-      formData.append('cloud_name', 'dqfum2awz');
+      formData.append('upload_preset', uploadPreset);
+      formData.append('cloud_name', cloudName);
 
       const response = await fetch(
-        'https://api.cloudinary.com/v1_1/dqfum2awz/image/upload',
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
         {
           method: 'POST',
           body: formData,
@@ -260,7 +268,9 @@ export default function MyProfilePage() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 5],
-        quality: 0.8,
+        quality: 0.5, // Reduced from 0.8 for faster upload
+        base64: false,
+        exif: false,
       });
 
       if (!result.canceled) {
@@ -282,8 +292,9 @@ export default function MyProfilePage() {
         // Update user profile with new photo
         const { updatePhoto } = await import('@/utils/api');
         const isPrimary = photoId === 1;
+        const userId = user?.id || user?._id;
 
-        await updatePhoto({
+        await updatePhoto(userId, {
           url: cloudinaryUrl,
           isPrimary: isPrimary
         });
@@ -315,7 +326,8 @@ export default function MyProfilePage() {
       })));
 
       const { updatePhoto } = await import('@/utils/api');
-      await updatePhoto({
+      const userId = user?.id || user?._id;
+      await updatePhoto(userId, {
         url: photo.url,
         isPrimary: true
       });
@@ -338,7 +350,8 @@ export default function MyProfilePage() {
       ));
 
       const { updatePhoto } = await import('@/utils/api');
-      await updatePhoto({
+      const userId = user?.id || user?._id;
+      await updatePhoto(userId, {
         url: photo.url,
         delete: true
       });
@@ -525,7 +538,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 20,
-    fontFamily: 'SpaceMono',
+
   },
   profileInfo: {
     alignItems: 'center',
@@ -560,7 +573,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 5,
-    fontFamily: 'SpaceMono',
+
   },
   verificationRow: {
     flexDirection: 'row',
@@ -575,7 +588,7 @@ const styles = StyleSheet.create({
   verificationText: {
     color: 'white',
     fontSize: 12,
-    fontFamily: 'SpaceMono',
+
   },
   statsRow: {
     flexDirection: 'row',
@@ -594,12 +607,12 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
-    fontFamily: 'SpaceMono',
+
   },
   statLabel: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
-    fontFamily: 'SpaceMono',
+
   },
   statDivider: {
     width: 1,
@@ -616,12 +629,12 @@ const styles = StyleSheet.create({
     color: Colors.gray,
     fontSize: 14,
     fontWeight: '600',
-    fontFamily: 'SpaceMono',
+
   },
   progressValue: {
     color: Colors.primary,
     fontWeight: 'bold',
-    fontFamily: 'SpaceMono',
+
   },
   progressBarBg: {
     height: 8,
@@ -666,13 +679,13 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 10,
     fontWeight: 'bold',
-    fontFamily: 'SpaceMono',
+
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+
   },
   sectionContent: {
     padding: 16,
@@ -686,7 +699,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginBottom: 8,
-    fontFamily: 'SpaceMono',
+
   },
   input: {
     borderWidth: 1,
@@ -696,7 +709,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textPrimary,
     backgroundColor: 'white',
-    fontFamily: 'SpaceMono',
+
   },
   pickerContainer: {
     borderWidth: 1,
@@ -737,7 +750,7 @@ const styles = StyleSheet.create({
   photoPlaceholderText: {
     fontSize: 12,
     color: Colors.gray,
-    fontFamily: 'SpaceMono',
+
   },
   photoActions: {
     position: 'absolute',
@@ -762,7 +775,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 10,
     fontWeight: '600',
-    fontFamily: 'SpaceMono',
+
   },
   deleteBtn: {
     backgroundColor: Colors.danger,
@@ -782,7 +795,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 10,
     fontWeight: 'bold',
-    fontFamily: 'SpaceMono',
+
   },
   saveButton: {
     marginTop: 30,
@@ -800,7 +813,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
-    fontFamily: 'SpaceMono',
+
   }
 
 });

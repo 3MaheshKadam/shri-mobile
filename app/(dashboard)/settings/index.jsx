@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+    
   },
   content: {
     flex: 1,
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+    
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -328,13 +328,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+    
     marginBottom: 2,
   },
   settingSubtitle: {
     fontSize: 12,
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+    
   },
   divider: {
     height: 1,
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+    
   },
   logoutButton: {
     flexDirection: 'row',
@@ -370,6 +370,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.danger,
-    fontFamily: 'SpaceMono',
+    
   },
 });

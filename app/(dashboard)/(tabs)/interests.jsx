@@ -10,7 +10,9 @@ import {
   RefreshControl,
   StyleSheet,
   Dimensions,
-  Pressable
+  Pressable,
+  Linking,
+  Alert
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import {
@@ -41,11 +43,12 @@ import { useSession } from '../../../context/SessionContext';
 import { Config } from '@/constants/Config';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
 export default function InterestsPage() {
-  const { user } = useSession();
+  const { user, refreshUser } = useSession();
   const router = useRouter();
 
   // All state declarations
@@ -65,6 +68,7 @@ export default function InterestsPage() {
     lifestyle: false
   });
   const [hasSubscription, setHasSubscription] = useState(false);
+  const [subscriptionRequired, setSubscriptionRequired] = useState(false);
 
   // Mask first name while keeping last name visible
   const maskFirstName = (fullName) => {
@@ -93,14 +97,26 @@ export default function InterestsPage() {
   const fetchInterests = async (type) => {
     try {
       const { getReceivedInterests, getSentInterests } = await import('@/utils/api');
+      const userId = user?.id || user?._id;
 
-      if (type === 'send') {
-        const response = await getSentInterests();
-        return response;
-      } else {
-        const response = await getReceivedInterests();
-        return response;
+      if (!userId) {
+        throw new Error('User ID not found');
       }
+
+      let response;
+      if (type === 'send') {
+        response = await getSentInterests(userId);
+      } else {
+        response = await getReceivedInterests(userId);
+      }
+
+      // Handle subscription requirement
+      if (!response.success && response.requiresSubscription) {
+        setSubscriptionRequired(true);
+        return { success: true, interests: [] }; // Return empty success to avoid error
+      }
+
+      return response;
     } catch (err) {
       throw err;
     }
@@ -120,9 +136,14 @@ export default function InterestsPage() {
         fetchInterests('send'),
         fetchInterests('received')
       ]);
+      console.log('Sent interests response:', sent);
+      console.log('Received interests response:', received);
       setSentInterests(sent.interests || []);
       setReceivedInterests(received.interests || []);
+      console.log('Sent interests count:', sent.interests?.length || 0);
+      console.log('Received interests count:', received.interests?.length || 0);
     } catch (err) {
+      console.error('Error loading interests:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -131,9 +152,17 @@ export default function InterestsPage() {
   };
 
   // Refresh data
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    loadAllData();
+    setSubscriptionRequired(false); // Reset lock state to try again
+    setError(null);
+
+    // Refresh user data first to get latest subscription status
+    await refreshUser();
+
+    // Then load data
+    await loadAllData();
+    setIsRefreshing(false);
   };
 
   // Handle interest actions (accept/decline/cancel)
@@ -143,6 +172,17 @@ export default function InterestsPage() {
       const response = await updateInterestStatus(interestId, action);
 
       if (response.success) {
+        // If accepted, show contact information
+        if (action === 'accepted' && response.contactShared) {
+          const contactInfo = response.senderContact || response.receiverContact;
+          if (contactInfo) {
+            Alert.alert(
+              'Interest Accepted! 🎉',
+              `Contact details shared:\n\nName: ${contactInfo.name}\nPhone: ${contactInfo.phone}\nEmail: ${contactInfo.email}`,
+              [{ text: 'OK' }]
+            );
+          }
+        }
         loadAllData(); // Refresh the list
       } else {
         setError(response.message || 'Action failed');
@@ -359,6 +399,33 @@ export default function InterestsPage() {
 
   const stats = getTabStats();
 
+  if (subscriptionRequired) {
+    return (
+      <View style={styles.errorContainer}>
+        <View style={[styles.errorIcon, { backgroundColor: Colors.primaryLight }]}>
+          <Heart size={32} color={Colors.primary} />
+        </View>
+        <Text style={styles.errorTitle}>Interests Locked</Text>
+        <Text style={styles.errorMessage}>
+          Upgrade to a Premium plan to see who is interested in you and to send interests to others!
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.push('/(dashboard)/subscription')}
+          style={styles.retryButton}
+        >
+          <LinearGradient
+            colors={[Colors.primary, Colors.secondary]}
+            style={{ borderRadius: 8, paddingVertical: 12, paddingHorizontal: 24 }}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Text style={styles.retryButtonText}>Upgrade Now</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (isLoading && !isRefreshing) {
     return (
       <View style={styles.loadingContainer}>
@@ -526,6 +593,52 @@ export default function InterestsPage() {
                   <ProfileDetailItem icon={DollarSign} label="Income" value={selectedProfile.income} />
                 </View>
               </ProfileSection>
+
+              {/* Contact Information - Only show for accepted interests */}
+              {selectedProfile.status === 'accepted' && selectedProfile.contactShared && (
+                <ProfileSection title="Contact Information" sectionKey="contact">
+                  <View style={styles.sectionItems}>
+                    {selectedProfile.phone && (
+                      <View style={styles.contactItem}>
+                        <Phone size={20} color={Colors.primary} />
+                        <View style={styles.contactInfo}>
+                          <Text style={styles.contactLabel}>Phone</Text>
+                          <Text style={styles.contactValue}>{selectedProfile.phone}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.contactButton}
+                          onPress={() => {
+                            // Open phone dialer
+                            const phoneUrl = `tel:${selectedProfile.phone}`;
+                            Linking.openURL(phoneUrl).catch(err => console.error('Error opening dialer:', err));
+                          }}
+                        >
+                          <Text style={styles.contactButtonText}>Call</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    {selectedProfile.email && (
+                      <View style={styles.contactItem}>
+                        <Mail size={20} color={Colors.primary} />
+                        <View style={styles.contactInfo}>
+                          <Text style={styles.contactLabel}>Email</Text>
+                          <Text style={styles.contactValue}>{selectedProfile.email}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.contactButton}
+                          onPress={() => {
+                            // Open email client
+                            const emailUrl = `mailto:${selectedProfile.email}`;
+                            Linking.openURL(emailUrl).catch(err => console.error('Error opening email:', err));
+                          }}
+                        >
+                          <Text style={styles.contactButtonText}>Email</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                </ProfileSection>
+              )}
             </ScrollView>
           </View>
         )}
@@ -623,7 +736,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+
     maxWidth: width * 0.8,
   },
   errorContainer: {
@@ -647,7 +760,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textPrimary,
     marginBottom: 8,
-    fontFamily: 'SpaceMono',
+
     maxWidth: width * 0.8,
   },
   errorMessage: {
@@ -655,7 +768,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
-    fontFamily: 'SpaceMono',
+
     maxWidth: width * 0.8,
   },
   retryButton: {
@@ -668,7 +781,7 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 16,
     fontWeight: '500',
-    fontFamily: 'SpaceMono',
+
   },
   headerContainer: {
     backgroundColor: Colors.white,
@@ -679,7 +792,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+
   },
   headerDivider: {
     height: 1,
@@ -720,7 +833,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: Colors.white,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   closeModalButton: {
@@ -760,7 +873,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textPrimary,
     marginBottom: 4,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   profileInfoRow: {
@@ -771,7 +884,7 @@ const styles = StyleSheet.create({
   profileInfoText: {
     fontSize: 14,
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   locationContainer: {
@@ -783,7 +896,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginLeft: 4,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   section: {
@@ -801,7 +914,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   sectionContent: {
@@ -824,7 +937,7 @@ const styles = StyleSheet.create({
   lockNoteText: {
     fontSize: 12,
     color: Colors.success,
-    fontFamily: 'SpaceMono',
+
   },
   detailIcon: {
     backgroundColor: Colors.secondaryLight,
@@ -840,13 +953,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: Colors.textSecondary,
     marginBottom: 4,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   detailValue: {
     fontSize: 16,
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   mainScroll: {
@@ -884,7 +997,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   activeTabText: {
@@ -911,14 +1024,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textPrimary,
     marginBottom: 8,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   emptyMessage: {
     fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center',
-    fontFamily: 'SpaceMono',
+
     maxWidth: width * 0.8,
   },
   cardList: {
@@ -980,7 +1093,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   profileInfo: {
@@ -999,7 +1112,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginLeft: 4,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   occupationContainer: {
@@ -1012,7 +1125,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginLeft: 8,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   actionContainer: {
@@ -1026,7 +1139,7 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 12,
     color: Colors.textLight,
-    fontFamily: 'SpaceMono',
+
     flexShrink: 1,
   },
   actionButtons: {
@@ -1062,7 +1175,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 4,
-    fontFamily: 'SpaceMono',
+
     color: Colors.textPrimary,
   },
   badgePending: {
@@ -1106,7 +1219,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+
   },
   activeCountText: {
     color: Colors.white,
@@ -1115,8 +1228,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     marginLeft: 4,
-    fontFamily: 'SpaceMono',
+
     color: Colors.textPrimary,
     flexShrink: 1,
+  },
+  // Contact Information Styles
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.backgroundSecondary,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  contactInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  contactLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  contactValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  contactButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  contactButtonText: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

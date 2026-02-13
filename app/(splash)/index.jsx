@@ -259,7 +259,7 @@ export default function SplashScreen({ navigation }) {
               className="text-base text-center mt-3 px-8"
               style={{
                 color: Colors.textSecondary,
-                fontFamily: 'SpaceMono',
+                
               }}
             >
               Finding the Right Match, with Trust
@@ -282,7 +282,7 @@ export default function SplashScreen({ navigation }) {
                 className="text-sm"
                 style={{
                   color: Colors.textSecondary,
-                  fontFamily: 'SpaceMono',
+                  
                 }}
               >
                 Secure
@@ -298,7 +298,7 @@ export default function SplashScreen({ navigation }) {
                 className="text-sm"
                 style={{
                   color: Colors.textSecondary,
-                  fontFamily: 'SpaceMono',
+                  
                 }}
               >
                 Trusted by 50,000+

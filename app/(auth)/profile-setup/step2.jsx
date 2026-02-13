@@ -152,13 +152,13 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: 'bold',
         color: Colors.primary,
-        fontFamily: 'SpaceMono',
+        
         marginBottom: 8,
     },
     subtitle: {
         fontSize: 16,
         color: Colors.textSecondary,
-        fontFamily: 'SpaceMono',
+        
     },
     stepIndicator: {
         flexDirection: 'row',
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: Colors.primary,
-        fontFamily: 'SpaceMono',
+        
     },
     pickerContainer: {
         borderWidth: 1,
@@ -234,6 +234,6 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 18,
         fontWeight: 'bold',
-        fontFamily: 'SpaceMono',
+        
     },
 });

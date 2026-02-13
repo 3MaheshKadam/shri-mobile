@@ -157,14 +157,14 @@ const styles = StyleSheet.create({
         color: 'white',
         textAlign: 'center',
         marginBottom: 5,
-        fontFamily: 'SpaceMono',
+        
     },
     headerSubtitle: {
         fontSize: 14,
         color: 'rgba(255,255,255,0.9)',
         textAlign: 'center',
         marginBottom: 15,
-        fontFamily: 'SpaceMono',
+        
     },
     progressContainer: {
         flexDirection: 'row',
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 12,
         fontWeight: 'bold',
-        fontFamily: 'SpaceMono',
+        
         minWidth: 40,
         textAlign: 'right',
     },

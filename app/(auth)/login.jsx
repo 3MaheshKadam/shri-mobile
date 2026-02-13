@@ -116,10 +116,11 @@ export default function ShreeKalyanamLogin() {
         if (success) {
           // Check if new user needs profile setup
           if (response.isNewUser) {
-            router.push('/(auth)/profile-setup');
-          } else {
-            // Proceed to Terms & Conditions step
+            // New User: Go to Terms & Conditions first
             setStep(3);
+          } else {
+            // Existing User: Go directly to Matches screen
+            router.replace('/(dashboard)/(tabs)/matches');
           }
         } else {
           setError('Login failed. Please try again.');
@@ -373,14 +374,14 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     marginBottom: 8,
     textAlign: 'center',
-    fontFamily: 'SpaceMono',
+    
   },
   subtitle: {
     fontSize: 16,
     color: Colors.gray,
     marginBottom: 32,
     textAlign: 'center',
-    fontFamily: 'SpaceMono',
+    
   },
   form: {
     gap: 16,
@@ -390,7 +391,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '600',
     marginBottom: 8,
-    fontFamily: 'SpaceMono',
+    
   },
   phoneInputContainer: {
     flexDirection: 'row',
@@ -413,7 +414,7 @@ const styles = StyleSheet.create({
   countryCodeText: {
     fontSize: 16,
     color: Colors.gray,
-    fontFamily: 'SpaceMono',
+    
   },
   verticalDivider: {
     width: 1,
@@ -425,7 +426,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: Colors.black,
-    fontFamily: 'SpaceMono',
+    
   },
   button: {
     backgroundColor: Colors.primary,
@@ -443,7 +444,7 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 18,
     fontWeight: 'bold',
-    fontFamily: 'SpaceMono',
+    
   },
   errorText: {
     color: Colors.danger,
@@ -466,7 +467,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     backgroundColor: Colors.white,
     color: Colors.primary,
-    fontFamily: 'SpaceMono',
+    
   },
   otpSubtitle: {
     color: Colors.gray,
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     marginBottom: 10,
     textAlign: 'center',
-    fontFamily: 'SpaceMono',
+    
   },
   termsScroll: {
     backgroundColor: Colors.backgroundSecondary,
@@ -495,7 +496,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: 'SpaceMono',
+    
     textAlign: 'justify',
   }
 });

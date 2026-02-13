@@ -40,12 +40,17 @@ const apiRequest = async (endpoint, options = {}) => {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.message || data.error || 'API request failed');
+            const error = new Error(data.message || data.error || 'API request failed');
+            error.data = data;
+            error.status = response.status;
+            throw error;
         }
 
         return data;
     } catch (error) {
-        console.error(`API Error (${endpoint}):`, error);
+        if (!options.silent) {
+            console.error(`API Error (${endpoint}):`, error);
+        }
         throw error;
     }
 };
@@ -165,13 +170,14 @@ export const uploadPhoto = async (photoData) => {
 
 /**
  * Update user photo (set primary, delete)
+ * @param {string} userId - User ID
  * @param {object} photoData - Photo update data
  * @returns {Promise<{success: boolean}>}
  */
-export const updatePhoto = async (photoData) => {
+export const updatePhoto = async (userId, photoData) => {
     return apiRequest('/api/users/photo', {
         method: 'PUT',
-        body: JSON.stringify(photoData),
+        body: JSON.stringify({ userId, ...photoData }),
     });
 };
 
@@ -202,40 +208,63 @@ export const requestVerification = async () => {
 /**
  * Send interest to another user
  * @param {string} receiverId - User ID to send interest to
+ * @param {string} senderId - Current user's ID (sender)
  * @returns {Promise<{success: boolean, message: string}>}
  */
-export const sendInterest = async (receiverId) => {
+export const sendInterest = async (receiverId, senderId) => {
     return apiRequest('/api/interest/send', {
         method: 'POST',
-        body: JSON.stringify({ receiverId }),
+        body: JSON.stringify({ receiverId, senderId }),
     });
 };
 
 /**
  * Get received interests
+ * @param {string} userId - Current user's ID
  * @returns {Promise<{success: boolean, interests: array}>}
  */
-export const getReceivedInterests = async () => {
-    return apiRequest('/api/interest/received', { method: 'GET' });
+export const getReceivedInterests = async (userId) => {
+    if (!userId) {
+        throw new Error('User ID is required');
+    }
+    try {
+        return await apiRequest(`/api/interest/received?userId=${userId}`, { method: 'GET', silent: true });
+    } catch (error) {
+        if (error.status === 403 && error.data?.requiresSubscription) {
+            return error.data;
+        }
+        throw error;
+    }
 };
 
 /**
  * Get sent interests
+ * @param {string} userId - Current user's ID
  * @returns {Promise<{success: boolean, interests: array}>}
  */
-export const getSentInterests = async () => {
-    return apiRequest('/api/interest/sent', { method: 'GET' });
+export const getSentInterests = async (userId) => {
+    if (!userId) {
+        throw new Error('User ID is required');
+    }
+    try {
+        return await apiRequest(`/api/interest/send?userId=${userId}`, { method: 'GET', silent: true });
+    } catch (error) {
+        if (error.status === 403 && error.data?.requiresSubscription) {
+            return error.data;
+        }
+        throw error;
+    }
 };
 
 /**
  * Update interest status (accept/reject)
  * @param {string} interestId - Interest ID
- * @param {string} status - Status ('accepted' or 'rejected')
+ * @param {string} status - Status ('accepted' or 'declined')
  * @returns {Promise<{success: boolean}>}
  */
 export const updateInterestStatus = async (interestId, status) => {
     return apiRequest('/api/interest/status', {
-        method: 'PUT',
+        method: 'PATCH',
         body: JSON.stringify({ interestId, status }),
     });
 };

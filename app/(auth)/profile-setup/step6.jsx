@@ -193,13 +193,13 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: Colors.textPrimary,
         marginBottom: 5,
-        fontFamily: 'SpaceMono',
+        
     },
     stepSubtitle: {
         fontSize: 14,
         color: Colors.textSecondary,
         marginBottom: 25,
-        fontFamily: 'SpaceMono',
+        
     },
     photosGrid: {
         flexDirection: 'row',
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     photoPlaceholderText: {
         fontSize: 12,
         color: Colors.gray,
-        fontFamily: 'SpaceMono',
+        
         textAlign: 'center',
     },
     primaryBadge: {
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 10,
         fontWeight: 'bold',
-        fontFamily: 'SpaceMono',
+        
     },
     deleteButton: {
         position: 'absolute',
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: Colors.textSecondary,
         lineHeight: 20,
-        fontFamily: 'SpaceMono',
+        
     },
     buttonRow: {
         flexDirection: 'row',
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
         color: Colors.textPrimary,
         fontSize: 16,
         fontWeight: 'bold',
-        fontFamily: 'SpaceMono',
+        
     },
     completeButton: {
         flex: 2,
@@ -311,6 +311,6 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: 'bold',
-        fontFamily: 'SpaceMono',
+        
     },
 });

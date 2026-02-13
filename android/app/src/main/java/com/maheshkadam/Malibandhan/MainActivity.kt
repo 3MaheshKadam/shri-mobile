@@ -1,4 +1,4 @@
-package com.maheshkadam.Malibandhan
+package com.maheshkadam.ShreeKalyanam
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+    
   },
   header: {
     backgroundColor: 'transparent',
@@ -281,13 +281,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+    
     marginBottom: 6,
   },
   headerSubtitle: {
     fontSize: 14,
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+    
     lineHeight: 20,
   },
   content: {
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: Colors.white,
-    fontFamily: 'SpaceMono',
+    
   },
   planCard: {
     backgroundColor: 'transparent',
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+    
     marginBottom: 4,
   },
   priceContainer: {
@@ -378,12 +378,12 @@ const styles = StyleSheet.create({
   planPrice: {
     fontSize: 28,
     fontWeight: '700',
-    fontFamily: 'SpaceMono',
+    
   },
   planDuration: {
     fontSize: 14,
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+    
   },
   featuresContainer: {
     marginBottom: 20,
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   featureText: {
     fontSize: 14,
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+    
     flex: 1,
   },
   currentPlanButton: {
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+    
   },
   subscribeButton: {
     borderRadius: 16,
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.white,
-    fontFamily: 'SpaceMono',
+    
   },
   benefitsSection: {
     marginTop: 20,
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+    
     marginBottom: 16,
   },
   benefitCard: {
@@ -474,13 +474,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.textPrimary,
-    fontFamily: 'SpaceMono',
+    
     marginBottom: 4,
   },
   benefitText: {
     fontSize: 13,
     color: Colors.textSecondary,
-    fontFamily: 'SpaceMono',
+    
     lineHeight: 18,
   },
 });

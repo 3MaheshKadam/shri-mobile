@@ -123,7 +123,7 @@ const PlanCard = ({ plan, isCurrentPlan, isButtonLoading, config, onSubscribe })
               >
                 <Check size={16} color={config.textColor} />
               </View>
-              <Text style={{ fontSize: 14, color: Colors.textPrimary, fontWeight: '500', fontFamily: 'SpaceMono', flex: 1 }}>{feature}</Text>
+              <Text style={{ fontSize: 14, color: Colors.textPrimary, fontWeight: '500',  flex: 1 }}>{feature}</Text>
             </View>
           ))}
         </View>

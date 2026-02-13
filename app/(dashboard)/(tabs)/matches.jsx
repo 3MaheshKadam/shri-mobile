@@ -1,4 +1,4 @@
-﻿import { BlurView } from 'expo-blur';
+import { BlurView } from 'expo-blur';
 import React, { useState, useEffect, useMemo, memo, useCallback } from 'react';
 import {
     View,
@@ -40,7 +40,7 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
 const MatchesPage = () => {
-    const { user, subscriptionPlan, isSubscribed } = useSession();
+    const { user, subscriptionPlan, isSubscribed, refreshUser } = useSession();
     const [matches, setMatches] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -49,8 +49,8 @@ const MatchesPage = () => {
     const [sendingInterest, setSendingInterest] = useState({});
     const insets = useSafeAreaInsets();
 
-    // Filter states
-    const [filters, setFilters] = useState({
+    // Active filters (applied)
+    const [activeFilters, setActiveFilters] = useState({
         gender: '',
         minAge: '',
         maxAge: '',
@@ -61,9 +61,24 @@ const MatchesPage = () => {
         income: '',
     });
 
-    const fetchMatches = async (showLoader = true) => {
+    // Draft filters (being edited in modal)
+    const [draftFilters, setDraftFilters] = useState({
+        gender: '',
+        minAge: '',
+        maxAge: '',
+        city: '',
+        caste: '',
+        maritalStatus: '',
+        education: '',
+        income: '',
+    });
+
+    const fetchMatches = async (showLoader = true, filtersToUse = null) => {
         try {
             if (showLoader) setIsLoading(true);
+
+            // Use provided filters or active filters
+            const currentFilters = filtersToUse !== null ? filtersToUse : activeFilters;
 
             // Build filter object
             const filterParams = {};
@@ -71,21 +86,44 @@ const MatchesPage = () => {
             // Auto-filter opposite gender if user has gender set
             if (user?.gender) {
                 const targetGender = user.gender === 'Male' ? 'Female' : 'Male';
-                filterParams.gender = filters.gender || targetGender;
+                filterParams.gender = currentFilters.gender || targetGender;
             }
 
             // Add other filters if set
-            if (filters.minAge) filterParams.minAge = parseInt(filters.minAge);
-            if (filters.maxAge) filterParams.maxAge = parseInt(filters.maxAge);
-            if (filters.city) filterParams.city = filters.city;
-            if (filters.caste) filterParams.caste = filters.caste;
-            if (filters.maritalStatus) filterParams.maritalStatus = filters.maritalStatus;
-            if (filters.education) filterParams.education = filters.education;
-            if (filters.income) filterParams.income = filters.income;
+            if (currentFilters.minAge) filterParams.minAge = parseInt(currentFilters.minAge);
+            if (currentFilters.maxAge) filterParams.maxAge = parseInt(currentFilters.maxAge);
+            if (currentFilters.city) filterParams.city = currentFilters.city;
+            if (currentFilters.caste) filterParams.caste = currentFilters.caste;
+            if (currentFilters.maritalStatus) filterParams.maritalStatus = currentFilters.maritalStatus;
+            if (currentFilters.education) filterParams.education = currentFilters.education;
+            if (currentFilters.income) filterParams.income = currentFilters.income;
 
             console.log('Fetching matches with filters:', filterParams);
 
+            // Add userId for subscription check
+            if (user?._id || user?.id) {
+                filterParams.userId = user._id || user.id;
+            }
+
             const response = await fetchAllUsers(filterParams);
+
+            // Handle subscription requirement
+            // Handle subscription requirement - DISABLED to show blurred profiles
+            // if (!response.success && response.requiresSubscription) {
+            //     setIsLoading(false);
+            //     Alert.alert(
+            //         'Subscription Required',
+            //         response.message || 'Subscribe to view profiles',
+            //         [
+            //             { text: 'Cancel', style: 'cancel' },
+            //             {
+            //                 text: 'Subscribe',
+            //                 onPress: () => router.push('/(dashboard)/subscription')
+            //             }
+            //         ]
+            //     );
+            //     return;
+            // }
 
             if (response.success && Array.isArray(response.data)) {
                 const mappedMatches = response.data.map(item => {
@@ -132,11 +170,22 @@ const MatchesPage = () => {
 
     useEffect(() => {
         fetchMatches();
-    }, [filters]);
+    }, []); // Only fetch on mount
 
-    const handleRefresh = () => {
+    const handleRefresh = async () => {
         setIsRefreshing(true);
-        fetchMatches(false);
+        // Refresh both user session (for subscription status) and matches list
+        await Promise.all([
+            refreshUser(),
+            fetchMatches(false)
+        ]);
+        setIsRefreshing(false);
+    };
+
+    // Open filter modal - copy active filters to draft
+    const handleOpenFilters = () => {
+        setDraftFilters({ ...activeFilters });
+        setShowFilters(true);
     };
 
     const handleSendInterest = async (receiverId) => {
@@ -144,7 +193,7 @@ const MatchesPage = () => {
             setSendingInterest(prev => ({ ...prev, [receiverId]: true }));
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-            const response = await sendInterest(receiverId);
+            const response = await sendInterest(receiverId, user?.id);
 
             if (response.success) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -160,14 +209,19 @@ const MatchesPage = () => {
         }
     };
 
-    const applyFilters = () => {
+    // Apply filters - copy draft to active and fetch
+    const handleApplyFilters = () => {
+        console.log('Applying filters:', draftFilters);
+        setActiveFilters({ ...draftFilters });
         setShowFilters(false);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        fetchMatches();
+        // Fetch with draft filters immediately
+        fetchMatches(true, draftFilters);
     };
 
-    const clearFilters = () => {
-        setFilters({
+    // Clear draft filters
+    const handleClearFilters = () => {
+        setDraftFilters({
             gender: '',
             minAge: '',
             maxAge: '',
@@ -180,17 +234,73 @@ const MatchesPage = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
+    // Filter matches by search query
+    const filteredMatches = useMemo(() => {
+        if (!searchQuery.trim()) {
+            return matches;
+        }
+        return matches.filter(match =>
+            match.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [matches, searchQuery]);
+
     const MatchCard = memo(({ match }) => {
         const isSending = sendingInterest[match._id];
+
+        // Subscription check
+        const isUserSubscribed = isSubscribed && subscriptionPlan;
+
+        const handleInteraction = () => {
+            if (!isUserSubscribed) {
+                Alert.alert(
+                    "Subscription Required",
+                    "Please subscribe to view full profile and connect.",
+                    [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Subscribe Now", onPress: () => router.push('/(dashboard)/subscription') }
+                    ]
+                );
+                return;
+            }
+            router.push(`/profile/${match._id}`);
+        };
+
+        const handleInterestPress = () => {
+            if (!isUserSubscribed) {
+                Alert.alert(
+                    "Subscription Required",
+                    "Please subscribe to send interests.",
+                    [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Subscribe Now", onPress: () => router.push('/(dashboard)/subscription') }
+                    ]
+                );
+                return;
+            }
+            handleSendInterest(match._id);
+        };
 
         return (
             <View style={styles.cardContainer}>
                 <TouchableOpacity
                     style={styles.imageContainer}
-                    onPress={() => router.push(`/profile/${match._id}`)}
+                    onPress={handleInteraction}
                     activeOpacity={0.9}
                 >
-                    <Image source={{ uri: match.profilePhoto }} style={styles.profileImage} resizeMode="cover" />
+                    <Image
+                        source={{ uri: match.profilePhoto }}
+                        style={styles.profileImage}
+                        resizeMode="cover"
+                        blurRadius={!isUserSubscribed ? 10 : 0} // Native blur for image
+                    />
+
+                    {!isUserSubscribed && (
+                        <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                            {/* <BlurView intensity={20} style={StyleSheet.absoluteFill} /> */}
+                            {/* Using simple overlay as BlurView can be tricky inside items sometimes, but blurRadius on Image is reliable */}
+                        </View>
+                    )}
+
                     {match.compatibility > 80 && (
                         <View style={styles.matchBadge}>
                             <Text style={styles.matchBadgeText}>{match.compatibility}%</Text>
@@ -201,9 +311,10 @@ const MatchesPage = () => {
                             <CheckCircle size={16} color="white" fill={Colors.primary} />
                         </View>
                     )}
+
                     <TouchableOpacity
                         style={styles.heartIcon}
-                        onPress={() => handleSendInterest(match._id)}
+                        onPress={handleInterestPress}
                         disabled={isSending}
                     >
                         {isSending ? (
@@ -215,18 +326,15 @@ const MatchesPage = () => {
                 </TouchableOpacity>
 
                 <View style={styles.cardContent}>
-                    <Text style={styles.name} numberOfLines={1}>{match.name}</Text>
+                    <Text style={styles.name} numberOfLines={1}>
+                        {isUserSubscribed ? match.name : match.name.split(' ')[0] + '...'}
+                    </Text>
 
                     <View style={styles.detailsList}>
                         {match.age !== 'N/A' && (
                             <View style={styles.detailItem}>
                                 <Clock size={12} color={Colors.gray} />
                                 <Text style={styles.detailText}>{match.age} yrs</Text>
-                            </View>
-                        )}
-                        {match.height && (
-                            <View style={styles.detailItem}>
-                                <Text style={styles.detailText}>📏 {match.height}</Text>
                             </View>
                         )}
                         <View style={styles.detailItem}>
@@ -239,25 +347,21 @@ const MatchesPage = () => {
                                 <Text style={styles.detailText} numberOfLines={1}>{match.education}</Text>
                             </View>
                         )}
-                        {match.occupation && (
-                            <View style={styles.detailItem}>
-                                <Briefcase size={12} color={Colors.gray} />
-                                <Text style={styles.detailText} numberOfLines={1}>{match.occupation}</Text>
-                            </View>
-                        )}
                     </View>
 
                     <TouchableOpacity
-                        style={styles.viewProfileBtn}
-                        onPress={() => router.push(`/profile/${match._id}`)}
+                        style={[styles.viewProfileBtn, !isUserSubscribed && { opacity: 0.8 }]}
+                        onPress={handleInteraction}
                     >
                         <LinearGradient
-                            colors={[Colors.primary, Colors.secondary]}
+                            colors={isUserSubscribed ? [Colors.primary, Colors.secondary] : [Colors.gray, Colors.gray]}
                             style={styles.btnGradient}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
                         >
-                            <Text style={styles.btnText}>View Profile</Text>
+                            <Text style={styles.btnText}>
+                                {isUserSubscribed ? 'View Profile' : 'Subscribe to View'}
+                            </Text>
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>
@@ -290,16 +394,16 @@ const MatchesPage = () => {
                                     style={styles.filterInput}
                                     placeholder="Min"
                                     keyboardType="numeric"
-                                    value={filters.minAge}
-                                    onChangeText={(text) => setFilters(prev => ({ ...prev, minAge: text }))}
+                                    value={draftFilters.minAge}
+                                    onChangeText={(text) => setDraftFilters(prev => ({ ...prev, minAge: text }))}
                                 />
                                 <Text style={styles.filterSeparator}>to</Text>
                                 <TextInput
                                     style={styles.filterInput}
                                     placeholder="Max"
                                     keyboardType="numeric"
-                                    value={filters.maxAge}
-                                    onChangeText={(text) => setFilters(prev => ({ ...prev, maxAge: text }))}
+                                    value={draftFilters.maxAge}
+                                    onChangeText={(text) => setDraftFilters(prev => ({ ...prev, maxAge: text }))}
                                 />
                             </View>
                         </View>
@@ -310,8 +414,8 @@ const MatchesPage = () => {
                             <TextInput
                                 style={styles.filterInputFull}
                                 placeholder="Enter city name"
-                                value={filters.city}
-                                onChangeText={(text) => setFilters(prev => ({ ...prev, city: text }))}
+                                value={draftFilters.city}
+                                onChangeText={(text) => setDraftFilters(prev => ({ ...prev, city: text }))}
                             />
                         </View>
 
@@ -321,8 +425,8 @@ const MatchesPage = () => {
                             <TextInput
                                 style={styles.filterInputFull}
                                 placeholder="Enter caste"
-                                value={filters.caste}
-                                onChangeText={(text) => setFilters(prev => ({ ...prev, caste: text }))}
+                                value={draftFilters.caste}
+                                onChangeText={(text) => setDraftFilters(prev => ({ ...prev, caste: text }))}
                             />
                         </View>
 
@@ -335,16 +439,16 @@ const MatchesPage = () => {
                                         key={status}
                                         style={[
                                             styles.filterChip,
-                                            filters.maritalStatus === status && styles.filterChipActive
+                                            draftFilters.maritalStatus === status && styles.filterChipActive
                                         ]}
-                                        onPress={() => setFilters(prev => ({
+                                        onPress={() => setDraftFilters(prev => ({
                                             ...prev,
                                             maritalStatus: prev.maritalStatus === status ? '' : status
                                         }))}
                                     >
                                         <Text style={[
                                             styles.filterChipText,
-                                            filters.maritalStatus === status && styles.filterChipTextActive
+                                            draftFilters.maritalStatus === status && styles.filterChipTextActive
                                         ]}>{status}</Text>
                                     </TouchableOpacity>
                                 ))}
@@ -357,8 +461,8 @@ const MatchesPage = () => {
                             <TextInput
                                 style={styles.filterInputFull}
                                 placeholder="e.g., B.Tech, MBA"
-                                value={filters.education}
-                                onChangeText={(text) => setFilters(prev => ({ ...prev, education: text }))}
+                                value={draftFilters.education}
+                                onChangeText={(text) => setDraftFilters(prev => ({ ...prev, education: text }))}
                             />
                         </View>
 
@@ -371,16 +475,16 @@ const MatchesPage = () => {
                                         key={income}
                                         style={[
                                             styles.filterChip,
-                                            filters.income === income && styles.filterChipActive
+                                            draftFilters.income === income && styles.filterChipActive
                                         ]}
-                                        onPress={() => setFilters(prev => ({
+                                        onPress={() => setDraftFilters(prev => ({
                                             ...prev,
                                             income: prev.income === income ? '' : income
                                         }))}
                                     >
                                         <Text style={[
                                             styles.filterChipText,
-                                            filters.income === income && styles.filterChipTextActive
+                                            draftFilters.income === income && styles.filterChipTextActive
                                         ]}>{income}</Text>
                                     </TouchableOpacity>
                                 ))}
@@ -389,10 +493,10 @@ const MatchesPage = () => {
                     </ScrollView>
 
                     <View style={styles.modalFooter}>
-                        <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
+                        <TouchableOpacity style={styles.clearBtn} onPress={handleClearFilters}>
                             <Text style={styles.clearBtnText}>Clear All</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.applyBtn} onPress={applyFilters}>
+                        <TouchableOpacity style={styles.applyBtn} onPress={handleApplyFilters}>
                             <LinearGradient
                                 colors={[Colors.primary, Colors.secondary]}
                                 style={styles.applyBtnGradient}
@@ -414,7 +518,7 @@ const MatchesPage = () => {
             <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
                 <Text style={styles.headerTitle}>Matches</Text>
                 <View style={styles.headerRight}>
-                    <TouchableOpacity style={styles.iconBtn} onPress={() => setShowFilters(true)}>
+                    <TouchableOpacity style={styles.iconBtn} onPress={handleOpenFilters}>
                         <SlidersHorizontal size={24} color={Colors.black} />
                     </TouchableOpacity>
                 </View>
@@ -433,30 +537,30 @@ const MatchesPage = () => {
             </View>
 
             {/* Active Filters Display */}
-            {(filters.city || filters.caste || filters.maritalStatus || filters.minAge || filters.maxAge) && (
+            {(activeFilters.city || activeFilters.caste || activeFilters.maritalStatus || activeFilters.minAge || activeFilters.maxAge) && (
                 <ScrollView
                     horizontal
                     style={styles.activeFilters}
                     showsHorizontalScrollIndicator={false}
                 >
-                    {filters.minAge && filters.maxAge && (
+                    {activeFilters.minAge && activeFilters.maxAge && (
                         <View style={styles.activeFilterChip}>
-                            <Text style={styles.activeFilterText}>Age: {filters.minAge}-{filters.maxAge}</Text>
+                            <Text style={styles.activeFilterText}>Age: {activeFilters.minAge}-{activeFilters.maxAge}</Text>
                         </View>
                     )}
-                    {filters.city && (
+                    {activeFilters.city && (
                         <View style={styles.activeFilterChip}>
-                            <Text style={styles.activeFilterText}>📍 {filters.city}</Text>
+                            <Text style={styles.activeFilterText}>?? {activeFilters.city}</Text>
                         </View>
                     )}
-                    {filters.caste && (
+                    {activeFilters.caste && (
                         <View style={styles.activeFilterChip}>
-                            <Text style={styles.activeFilterText}>{filters.caste}</Text>
+                            <Text style={styles.activeFilterText}>{activeFilters.caste}</Text>
                         </View>
                     )}
-                    {filters.maritalStatus && (
+                    {activeFilters.maritalStatus && (
                         <View style={styles.activeFilterChip}>
-                            <Text style={styles.activeFilterText}>{filters.maritalStatus}</Text>
+                            <Text style={styles.activeFilterText}>{activeFilters.maritalStatus}</Text>
                         </View>
                     )}
                 </ScrollView>
@@ -466,7 +570,7 @@ const MatchesPage = () => {
                 <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 50 }} />
             ) : (
                 <FlatList
-                    data={matches}
+                    data={filteredMatches}
                     renderItem={({ item }) => <MatchCard match={item} />}
                     keyExtractor={(item) => item._id}
                     numColumns={2}
@@ -511,7 +615,7 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: 'bold',
         color: Colors.black,
-        fontFamily: 'SpaceMono',
+
     },
     headerRight: {
         flexDirection: 'row',
@@ -539,7 +643,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 16,
         color: Colors.textPrimary,
-        fontFamily: 'SpaceMono',
+
     },
     activeFilters: {
         paddingHorizontal: 20,
@@ -627,7 +731,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: Colors.primary,
         marginBottom: 8,
-        fontFamily: 'SpaceMono',
+
     },
     detailsList: {
         gap: 4,
@@ -641,7 +745,7 @@ const styles = StyleSheet.create({
     detailText: {
         fontSize: 11,
         color: Colors.gray,
-        fontFamily: 'SpaceMono',
+
         flex: 1,
     },
     viewProfileBtn: {
@@ -656,7 +760,7 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 14,
         fontWeight: '600',
-        fontFamily: 'SpaceMono',
+
     },
     emptyContainer: {
         alignItems: 'center',
@@ -665,7 +769,7 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 16,
         color: Colors.gray,
-        fontFamily: 'SpaceMono',
+
     },
     emptySubtext: {
         fontSize: 14,
@@ -696,7 +800,7 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         color: Colors.black,
-        fontFamily: 'SpaceMono',
+
     },
     filterScroll: {
         padding: 20,
@@ -709,7 +813,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: Colors.black,
         marginBottom: 10,
-        fontFamily: 'SpaceMono',
+
     },
     filterRow: {
         flexDirection: 'row',
@@ -724,7 +828,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         paddingVertical: 12,
         fontSize: 14,
-        fontFamily: 'SpaceMono',
+
     },
     filterInputFull: {
         borderWidth: 1,
@@ -733,7 +837,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         paddingVertical: 12,
         fontSize: 14,
-        fontFamily: 'SpaceMono',
+
     },
     filterSeparator: {
         color: Colors.gray,
@@ -759,7 +863,7 @@ const styles = StyleSheet.create({
     filterChipText: {
         fontSize: 13,
         color: Colors.gray,
-        fontFamily: 'SpaceMono',
+
     },
     filterChipTextActive: {
         color: Colors.white,
@@ -783,7 +887,7 @@ const styles = StyleSheet.create({
         color: Colors.primary,
         fontSize: 16,
         fontWeight: '600',
-        fontFamily: 'SpaceMono',
+
     },
     applyBtn: {
         flex: 1,
@@ -798,7 +902,7 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: '600',
-        fontFamily: 'SpaceMono',
+
     },
 });
 

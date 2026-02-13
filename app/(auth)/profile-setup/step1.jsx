@@ -182,13 +182,13 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: Colors.textPrimary,
         marginBottom: 5,
-        fontFamily: 'SpaceMono',
+        
     },
     stepSubtitle: {
         fontSize: 14,
         color: Colors.textSecondary,
         marginBottom: 25,
-        fontFamily: 'SpaceMono',
+        
     },
     inputGroup: {
         marginBottom: 20,
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: Colors.textPrimary,
         marginBottom: 8,
-        fontFamily: 'SpaceMono',
+        
     },
     required: {
         color: Colors.danger,
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 16,
         color: Colors.textPrimary,
-        fontFamily: 'SpaceMono',
+        
     },
     pickerContainer: {
         borderWidth: 1,
@@ -248,6 +248,6 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: 'bold',
-        fontFamily: 'SpaceMono',
+        
     },
 });
